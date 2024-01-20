@@ -7,7 +7,7 @@
 ## Supported Devices
 
 - iOS 14 or higher (iOS 13 or lower is not supported at the moment)
-- iPhone or iPad with multiple of different flashlight LEDs (e.g. amber and regaular white)
+- iPhone or iPad with multiple of different flashlight LEDs (e.g. amber and regular white)
 - Devices with single-color flashlight LED(s) are not supported, such as iPhone 4s and iPhone 5
 - **iPhone 14 series and higher are not supported**, as [Apple has completely redesigned the flashlight LEDs](https://appleinsider.com/articles/22/09/20/how-iphone-14-pro-adaptive-true-tone-flash-creates-perfect-light-for-your-photos)
 
