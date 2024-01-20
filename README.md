@@ -37,6 +37,20 @@ There are two sliders in the app:
 
 Unlike [Amber tweak](https://github.com/PoomSmart/Amber), this app cannot force the two LEDs to be on at the same time. You can use `Torch Level` slider to control the brightness of the LEDs just as you can from the Control Center, but the `Warmth` slider will only set the warm percentile of the scene. The more the value, the more brightness of the amber LED will get, resulting in a warmer light color. If `Warmth` is set to the max, only the amber LED will be on.
 
+## Building
+
+As `.ipa`:
+
+```sh
+make package FINALPACKAGE=1 PACKAGE_FORMAT=ipa
+```
+
+AS `.deb`:
+
+```sh
+make package FINALPACKAGE=1
+```
+
 ## Future Plans
 
 1. More accessible sliders (are they too small?)

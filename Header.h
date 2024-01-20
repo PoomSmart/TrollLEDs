@@ -47,7 +47,7 @@ const CMBaseVTable *CMBaseObjectGetVTable(CMBaseObjectRef o);
 @end
 
 @interface BWFigCaptureDevice : NSObject
-- (NSArray <BWFigCaptureStream *> *)streams;
+- (id)getProperty:(CFStringRef)property error:(int *)error;
 @end
 
 @interface BWFigCaptureDeviceVendor : NSObject
