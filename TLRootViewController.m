@@ -5,6 +5,8 @@
 
 @interface TLRootViewController () {
     BWFigCaptureStream *stream;
+    OpaqueFigCaptureStreamRef streamRef;
+    CMBaseObjectSetPropertyFunction streamSetProperty;
     BOOL dual;
     double LEDLevel;
     int WarmLEDPercentile;
@@ -50,41 +52,65 @@
 }
 
 - (BOOL)setupStream {
+    pid_t pid = getpid();
+    BWFigCaptureDeviceVendor *vendor;
+    BWFigCaptureDevice *device;
+    OpaqueFigCaptureDeviceRef deviceRef;
+    int client;
     if (!dlopen("/System/Library/PrivateFrameworks/CMCapture.framework/CMCapture", RTLD_NOW))
         dlopen("/System/Library/PrivateFrameworks/Celestial.framework/Celestial", RTLD_NOW);
     Class BWFigCaptureDeviceVendorClass = NSClassFromString(@"BWFigCaptureDeviceVendor");
-    BWFigCaptureDeviceVendor *vendor;
     if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(sharedCaptureDeviceVendor)])
         vendor = [BWFigCaptureDeviceVendorClass sharedCaptureDeviceVendor];
     else
         vendor = [BWFigCaptureDeviceVendorClass sharedInstance];
     NSString *clientDescription = @"TrollLEDs application";
-    pid_t pid = getpid();
-    int client;
-    if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:clientPriority:canStealFromClientsWithSamePriority:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-        client = [vendor registerClientWithPID:pid clientDescription:clientDescription clientPriority:1 canStealFromClientsWithSamePriority:NO deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
-    else if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-        client = [vendor registerClientWithPID:pid clientDescription:clientDescription stealingBehavior:1 deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
-    else if ([vendor respondsToSelector:@selector(registerClientWithPID:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-        client = [vendor registerClientWithPID:pid stealingBehavior:1 deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
-    else if ([vendor respondsToSelector:@selector(_registerNewDeviceClientForPID:clientIDOut:deviceAvailabilityChangedHandler:)]) {
-        [vendor _registerNewDeviceClientForPID:pid clientIDOut:&client deviceAvailabilityChangedHandler:NULL];
+    if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(copyDefaultVideoDeviceWithStealingBehavior:forPID:clientIDOut:withDeviceAvailabilityChangedHandler:)]) {
+        deviceRef = [BWFigCaptureDeviceVendorClass copyDefaultVideoDeviceWithStealingBehavior:1 forPID:pid clientIDOut:&client withDeviceAvailabilityChangedHandler:NULL];
+        streamRef = [BWFigCaptureDeviceVendorClass copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:deviceRef];
     } else {
-        [self printError:@"Could not register client"];
+        if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:clientPriority:canStealFromClientsWithSamePriority:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
+            client = [vendor registerClientWithPID:pid clientDescription:clientDescription clientPriority:1 canStealFromClientsWithSamePriority:NO deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
+        else if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
+            client = [vendor registerClientWithPID:pid clientDescription:clientDescription stealingBehavior:1 deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
+        else if ([vendor respondsToSelector:@selector(registerClientWithPID:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
+            client = [vendor registerClientWithPID:pid stealingBehavior:1 deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
+        else {
+            [self printError:@"Could not register client"];
+            return NO;
+        }
+        int error;
+        if ([vendor respondsToSelector:@selector(copyDeviceForClient:informClientWhenDeviceAvailableAgain:error:)])
+            device = [vendor copyDeviceForClient:client informClientWhenDeviceAvailableAgain:NO error:&error];
+        else if ([vendor respondsToSelector:@selector(copyDeviceForClient:error:)])
+            device = [vendor copyDeviceForClient:client error:&error];
+        else if ([vendor respondsToSelector:@selector(copyDeviceForClient:)]) {
+            deviceRef = [vendor copyDeviceForClient:client];
+            SEL selector = @selector(copyStreamForFlashlightWithPosition:deviceType:forDevice:);
+            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:[vendor methodSignatureForSelector:selector]];
+            inv.selector = selector;
+            inv.target = vendor;
+            int position = 1;
+            [inv setArgument:&position atIndex:2];
+            int deviceType = 2;
+            [inv setArgument:&deviceType atIndex:3];
+            [inv setArgument:&deviceRef atIndex:4];
+            [inv invoke];
+            [inv getReturnValue:&streamRef];
+        } else {
+            [self printError:@"Could not get device"];
+            return NO;
+        }
+    }
+    if (streamRef) {
+        const CMBaseVTable *vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
+        streamSetProperty = vtable->baseClass->setProperty;
+    } else
+        stream = [vendor copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:device];
+    if (!streamSetProperty && !stream) {
+        [self printError:@"Could not get stream"];
         return NO;
     }
-    int error;
-    // TODO: iOS 12-13 support
-    BWFigCaptureDevice *device;
-    if ([vendor respondsToSelector:@selector(copyDeviceForClient:informClientWhenDeviceAvailableAgain:error:)])
-        device = [vendor copyDeviceForClient:client informClientWhenDeviceAvailableAgain:NO error:&error];
-    else if ([vendor respondsToSelector:@selector(copyDeviceForClient:error:)])
-        device = [vendor copyDeviceForClient:client error:&error];
-    else {
-        [self printError:@"Could not get device"];
-        return NO;
-    }
-	stream = [[device streams] firstObject];
     return YES;
 }
 
@@ -249,17 +275,28 @@
 
 - (void)updateParameters {
     if (dual) {
-        [stream setProperty:CFSTR("TorchLevel") value:@(LEDLevel)];
-        [stream setProperty:CFSTR("TorchColor") value:@{
+        NSNumber *torchLevelValue = @(LEDLevel);
+        NSDictionary *torchColorValue = @{
             @"WarmLEDPercentile": @(WarmLEDPercentile)
-        }];
+        };
+        if (stream) {
+            [stream setProperty:CFSTR("TorchLevel") value:torchLevelValue];
+            [stream setProperty:CFSTR("TorchColor") value:torchColorValue];
+        } else if (streamRef) {
+            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchLevel"), (__bridge CFNumberRef)torchLevelValue);
+            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchColor"), (__bridge CFDictionaryRef)torchColorValue);
+        }
     } else {
-        [stream setProperty:CFSTR("TorchManualParameters") value:@{
+        NSDictionary *params = @{
             @"CoolLED0Level": @(CoolLED0Level),
             @"CoolLED1Level": @(CoolLED1Level),
             @"WarmLED0Level": @(WarmLED0Level),
             @"WarmLED1Level": @(WarmLED1Level)
-        }];
+        };
+        if (stream)
+            [stream setProperty:CFSTR("TorchManualParameters") value:params];
+        else if (streamRef)
+            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchManualParameters"), (__bridge CFDictionaryRef)params);
     }
 }
 
