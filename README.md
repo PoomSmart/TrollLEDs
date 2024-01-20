@@ -13,7 +13,7 @@
 
 ## Usage (Quad-LEDs Devices)
 
-Quad-LEDs devices are devices with four flashlight LEDs, two white and two amber. This includes the devices such as iPhone 11, iPhone 13 Pro Max and iPad Pro 3rd generation.
+Quad-LEDs devices are devices with four flashlight LEDs, two white and two amber. This includes the devices such as iPhone 11 and iPad Pro 3rd generation.
 
 There are four sliders in the app:
 
