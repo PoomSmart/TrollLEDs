@@ -178,6 +178,7 @@
         label.text = [self labelText:i];
         label.textColor = color;
         label.textAlignment = NSTextAlignmentCenter;
+        label.font = [UIFont systemFontOfSize:14];
 
         [self.view addSubview:label];
         [self.sliderLabels addObject:label];
