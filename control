@@ -1,0 +1,9 @@
+Package: com.ps.trollleds
+Name: TrollLEDs
+Version: 1.0.0
+Depends: firmware (>= 13.0)
+Architecture: iphoneos-arm
+Description: Control flashlight LEDs with eases.
+Maintainer: PoomSmart
+Author: PoomSmart
+Section: Utilities
