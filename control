@@ -7,3 +7,5 @@ Description: Control flashlight LEDs with eases.
 Maintainer: PoomSmart
 Author: PoomSmart
 Section: Utilities
+Depiction: https://poomsmart.github.io/repo/depictions/trollleds.html
+SileoDepiction: https://poomsmart.github.io/repo/sileodepictions/trollleds.json
