@@ -4,6 +4,8 @@
 <dict>
     <key>application-identifier</key>
     <string>com.ps.TrollLEDs</string>
+    <key>platform-application</key>
+    <true/>
     <key>com.apple.camera.iokit-user-access</key>
     <true/>
     <key>com.apple.security.exception.iokit-user-client-class</key>
