@@ -19,10 +19,15 @@
     </array>
     <key>com.apple.security.exception.mach-lookup.global-name</key>
     <array>
+        <string>com.apple.applecamerad</string>
         <string>com.apple.appleh6camerad</string>
         <string>com.apple.appleh9camerad</string>
         <string>com.apple.appleh10camerad</string>
         <string>com.apple.appleh13camerad</string>
+    </array>
+    <key>sysctl-read</key>
+    <array>
+        <string>kern.bootargs</string>
     </array>
 </dict>
 </plist>

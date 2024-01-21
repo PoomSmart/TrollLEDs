@@ -25,6 +25,6 @@ endif
 include $(THEOS_MAKE_PATH)/application.mk
 
 ifeq ($(PACKAGE_FORMAT),ipa)
-after-package:: clean
+after-package::
 	cp $(THEOS_PROJECT_DIR)/$(THEOS_PACKAGE_DIR)/$(THEOS_PACKAGE_NAME)_$(PACKAGE_VERSION).ipa $(THEOS_PROJECT_DIR)/$(IPA_NAME).tipa
 endif
