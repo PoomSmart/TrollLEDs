@@ -8,8 +8,9 @@
 		return YES;
 	}
 	_window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
-	_rootViewController = [[TLRootViewController alloc] init];
+	_rootViewController = [[UINavigationController alloc] initWithRootViewController:[[TLRootViewController alloc] init]];
 	_window.rootViewController = _rootViewController;
+	_rootViewController.navigationBarHidden = YES;
 	[_window makeKeyAndVisible];
 	return YES;
 }

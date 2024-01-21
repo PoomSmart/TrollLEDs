@@ -37,6 +37,12 @@ There are two sliders in the app:
 
 Unlike [Amber tweak](https://github.com/PoomSmart/Amber), this app cannot force the two LEDs to be on at the same time. You can use `Torch Level` slider to control the brightness of the LEDs just as you can from the Control Center, but the `Warmth` slider will only set the warm percentile of the scene. The more the value, the more brightness of the amber LED will get, resulting in a warmer light color. If `Warmth` is set to the max, only the amber LED will be on.
 
+## Limitation
+
+TrollLEDs utilizes the `mediaserverd`-exclusive `BWFigCaptureDeviceVendor` class to control the flashlight LEDs.
+This creates an instance of `BWFigCaptureDevice` (or `OpaqueFigCaptureDeviceRef`). There can only be one instance at a time, so if there is another app that creates it (i.e., `mediaserverd`), TrollLEDs will not be able to control the flashlight LEDs.
+This is why there is a switch at the top of the app to lock the flashlight LEDs to TrollLEDs only. If you want to use the LEDs (or use the Camera app) from somewhere else, you can either turn off the switch (and wait few seconds) or kill the app.
+
 ## Building
 
 As `.tipa`:

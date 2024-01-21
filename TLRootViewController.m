@@ -1,10 +1,17 @@
 #import "TLRootViewController.h"
+#include <objc/objc.h>
 #import "Header.h"
 #import <UIKit/UIColor+Private.h>
 #import <dlfcn.h>
 
 @interface TLRootViewController () {
+    pid_t pid;
+    int client;
+    Class BWFigCaptureDeviceVendorClass;
+    BWFigCaptureDeviceVendor *vendor;
+    BWFigCaptureDevice *device;
     BWFigCaptureStream *stream;
+    OpaqueFigCaptureDeviceRef deviceRef;
     OpaqueFigCaptureStreamRef streamRef;
     CMBaseObjectSetPropertyFunction streamSetProperty;
     BOOL dual;
@@ -21,6 +28,10 @@
 @property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *sliderLabelConstraints;
 @property (nonatomic, strong) NSMutableArray <UILabel *> *sliderValueLabels;
 @property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *sliderValueLabelConstraints;
+@property (nonatomic, strong) UISwitch *lockSwitch;
+@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *lockSwitchConstraints;
+@property (nonatomic, strong) UILabel *lockSwitchLabel;
+@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *lockSwitchLabelConstraints;
 @end
 
 @implementation TLRootViewController
@@ -51,30 +62,29 @@
     ]];
 }
 
-- (BOOL)setupStream {
-    pid_t pid = getpid();
-    BWFigCaptureDeviceVendor *vendor;
-    BWFigCaptureDevice *device;
-    OpaqueFigCaptureDeviceRef deviceRef;
-    int client;
+- (void)initVendor {
     if (!dlopen("/System/Library/PrivateFrameworks/CMCapture.framework/CMCapture", RTLD_NOW))
         dlopen("/System/Library/PrivateFrameworks/Celestial.framework/Celestial", RTLD_NOW);
-    Class BWFigCaptureDeviceVendorClass = NSClassFromString(@"BWFigCaptureDeviceVendor");
+    BWFigCaptureDeviceVendorClass = NSClassFromString(@"BWFigCaptureDeviceVendor");
     if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(sharedCaptureDeviceVendor)])
         vendor = [BWFigCaptureDeviceVendorClass sharedCaptureDeviceVendor];
     else
         vendor = [BWFigCaptureDeviceVendorClass sharedInstance];
+    pid = getpid();
+}
+
+- (BOOL)setupStream {
     NSString *clientDescription = @"TrollLEDs application";
     if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(copyDefaultVideoDeviceWithStealingBehavior:forPID:clientIDOut:withDeviceAvailabilityChangedHandler:)]) {
         deviceRef = [BWFigCaptureDeviceVendorClass copyDefaultVideoDeviceWithStealingBehavior:1 forPID:pid clientIDOut:&client withDeviceAvailabilityChangedHandler:NULL];
         streamRef = [BWFigCaptureDeviceVendorClass copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:deviceRef];
     } else {
         if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:clientPriority:canStealFromClientsWithSamePriority:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-            client = [vendor registerClientWithPID:pid clientDescription:clientDescription clientPriority:1 canStealFromClientsWithSamePriority:NO deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
+            client = [vendor registerClientWithPID:pid clientDescription:clientDescription clientPriority:1 canStealFromClientsWithSamePriority:NO deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
         else if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-            client = [vendor registerClientWithPID:pid clientDescription:clientDescription stealingBehavior:1 deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
+            client = [vendor registerClientWithPID:pid clientDescription:clientDescription stealingBehavior:1 deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
         else if ([vendor respondsToSelector:@selector(registerClientWithPID:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-            client = [vendor registerClientWithPID:pid stealingBehavior:1 deviceSharingWithOtherClientsAllowed:NO deviceAvailabilityChangedHandler:NULL];
+            client = [vendor registerClientWithPID:pid stealingBehavior:1 deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
         else {
             [self printError:@"Could not register client"];
             return NO;
@@ -114,6 +124,23 @@
     return YES;
 }
 
+- (void)releaseStream {
+    if ([vendor respondsToSelector:@selector(takeBackDevice:forClient:informClientWhenDeviceAvailableAgain:)])
+        [vendor takeBackDevice:device forClient:client informClientWhenDeviceAvailableAgain:NO];
+    else if ([vendor respondsToSelector:@selector(takeBackFlashlightDevice:forPID:)])
+        [vendor takeBackFlashlightDevice:deviceRef forPID:pid];
+    else if ([vendor respondsToSelector:@selector(takeBackDevice:forClient:)])
+        [vendor takeBackDevice:deviceRef forClient:client];
+    if (streamRef)
+        CFRelease(streamRef);
+    deviceRef = NULL;
+    streamRef = NULL;
+    streamSetProperty = NULL;
+    device = nil;
+    stream = nil;
+    client = 0;
+}
+
 - (NSString *)labelText:(int)index {
     if (dual) {
         switch (index) {
@@ -142,10 +169,20 @@
     return isWarm ? [UIColor systemOrangeColor] : [UIColor whiteColor];
 }
 
+- (NSString *)switchLabel:(BOOL)locked {
+    return locked ? @"On: Only TrollLEDs can control the LEDs" : @"Off: Release the LEDs to other apps (this may take few seconds)";
+}
+
 - (void)viewDidLoad {
 	[super viewDidLoad];
+    [self initVendor];
 	if (![self setupStream]) return;
     [self checkType];
+
+    UITableView *tableView = (UITableView *)self.view;
+    tableView.scrollEnabled = NO;
+    tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    tableView.backgroundColor = [UIColor blackColor];
 
     self.sliders = [[NSMutableArray alloc] init];
     self.sliderConstraints = [[NSMutableArray alloc] init];
@@ -153,7 +190,26 @@
     self.sliderLabelConstraints = [[NSMutableArray alloc] init];
     self.sliderValueLabels = [[NSMutableArray alloc] init];
     self.sliderValueLabelConstraints = [[NSMutableArray alloc] init];
+    self.lockSwitchConstraints = [[NSMutableArray alloc] init];
+    self.lockSwitchLabelConstraints = [[NSMutableArray alloc] init];
     int sliderCount = dual ? 2 : 4;
+
+    self.lockSwitch = [[UISwitch alloc] init];
+    self.lockSwitch.translatesAutoresizingMaskIntoConstraints = NO;
+    self.lockSwitch.on = YES;
+    [self.lockSwitch addTarget:self action:@selector(lockStateChanged:) forControlEvents:UIControlEventValueChanged];
+
+    [self.view addSubview:self.lockSwitch];
+
+    self.lockSwitchLabel = [[UILabel alloc] init];
+    self.lockSwitchLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.lockSwitchLabel.text = [self switchLabel:YES];
+    self.lockSwitchLabel.textColor = [UIColor systemGrayColor];
+    self.lockSwitchLabel.textAlignment = NSTextAlignmentCenter;
+    self.lockSwitchLabel.numberOfLines = 2;
+    self.lockSwitchLabel.font = [UIFont systemFontOfSize:14];
+
+    [self.view addSubview:self.lockSwitchLabel];
 
     for (NSInteger i = 0; i < sliderCount; i++) {
         UIColor *color = [self color:i];
@@ -200,9 +256,30 @@
     [NSLayoutConstraint deactivateConstraints:self.sliderConstraints];
     [NSLayoutConstraint deactivateConstraints:self.sliderLabelConstraints];
     [NSLayoutConstraint deactivateConstraints:self.sliderValueLabelConstraints];
+    [NSLayoutConstraint deactivateConstraints:self.lockSwitchConstraints];
+    [NSLayoutConstraint deactivateConstraints:self.lockSwitchLabelConstraints];
     [self.sliderConstraints removeAllObjects];
     [self.sliderLabelConstraints removeAllObjects];
     [self.sliderValueLabelConstraints removeAllObjects];
+    [self.lockSwitchConstraints removeAllObjects];
+    [self.lockSwitchLabelConstraints removeAllObjects];
+
+    UISwitch *lockSwitch = self.lockSwitch;
+
+    NSLayoutConstraint *lockSwitchCenterX = [lockSwitch.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *lockSwitchTop = [lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20];
+
+    [self.lockSwitchConstraints addObjectsFromArray:@[lockSwitchCenterX, lockSwitchTop]];
+    [NSLayoutConstraint activateConstraints:self.lockSwitchConstraints];
+
+    UILabel *lockSwitchLabel = self.lockSwitchLabel;
+
+    NSLayoutConstraint *lockSwitchLabelCenterX = [lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *lockSwitchLabelTop = [lockSwitchLabel.topAnchor constraintEqualToAnchor:lockSwitch.bottomAnchor constant:10];
+    NSLayoutConstraint *lockSwitchLabelWidth = [lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
+
+    [self.lockSwitchLabelConstraints addObjectsFromArray:@[lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth]];
+    [NSLayoutConstraint activateConstraints:self.lockSwitchLabelConstraints];
 
     CGFloat sliderWidth = 30.0;
     CGFloat sliderHeight = self.view.bounds.size.height * 0.4;
@@ -272,6 +349,28 @@
     valueLabel.text = [NSString stringWithFormat:@"%d", value];
 
     [self updateParameters];
+}
+
+- (void)lockStateChanged:(UISwitch *)sender {
+    BOOL locked = sender.on;
+    if (locked)
+        [self setupStream];
+    else {
+        if (stream)
+            [stream setProperty:CFSTR("TorchLevel") value:@(0)];
+        else if (streamRef)
+            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchLevel"), (__bridge CFNumberRef)@(0));
+        [self releaseStream];
+    }
+    self.lockSwitchLabel.text = [self switchLabel:locked];
+    for (UISlider *slider in self.sliders) {
+        slider.value = 0;
+        slider.enabled = locked;
+        [slider setNeedsLayout];
+    }
+    for (UILabel *label in self.sliderValueLabels) {
+        label.text = @"0";
+    }
 }
 
 - (void)updateParameters {

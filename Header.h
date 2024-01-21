@@ -65,6 +65,9 @@ const CMBaseVTable *CMBaseObjectGetVTable(CMBaseObjectRef o);
 - (BWFigCaptureStream *)copyStreamForFlashlightWithPosition:(int)position deviceType:(int)deviceType forDevice:(BWFigCaptureDevice *)device;
 - (BWFigCaptureDevice *)copyDeviceForClient:(int)client error:(int *)error;
 - (BWFigCaptureDevice *)copyDeviceForClient:(int)client informClientWhenDeviceAvailableAgain:(BOOL)informClientWhenDeviceAvailableAgain error:(int *)error;
+- (void)takeBackDevice:(OpaqueFigCaptureDeviceRef)device forClient:(int)client;
+- (void)takeBackFlashlightDevice:(OpaqueFigCaptureDeviceRef)device forPID:(pid_t)pid;
+- (void)takeBackDevice:(BWFigCaptureDevice *)device forClient:(int)client informClientWhenDeviceAvailableAgain:(BOOL)informClientWhenDeviceAvailableAgain;
 @end
 
 #endif /* Header_h */
