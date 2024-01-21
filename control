@@ -1,6 +1,6 @@
 Package: com.ps.trollleds
 Name: TrollLEDs
-Version: 1.3.0
+Version: 1.0.0
 Depends: firmware (>= 11.0), gsc.camera-flash
 Architecture: iphoneos-arm
 Description: Control flashlight LEDs with eases.
