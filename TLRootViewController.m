@@ -15,6 +15,7 @@
     OpaqueFigCaptureStreamRef streamRef;
     CMBaseObjectSetPropertyFunction streamSetProperty;
     BOOL dual;
+    BOOL locked;
     double LEDLevel;
     int WarmLEDPercentile;
     int CoolLED0Level;
@@ -169,7 +170,7 @@
     return isWarm ? [UIColor systemOrangeColor] : [UIColor whiteColor];
 }
 
-- (NSString *)switchLabel:(BOOL)locked {
+- (NSString *)switchLabel {
     return locked ? @"On: Only TrollLEDs can control the LEDs" : @"Off: Release the LEDs to other apps (this may take few seconds)";
 }
 
@@ -196,14 +197,14 @@
 
     self.lockSwitch = [[UISwitch alloc] init];
     self.lockSwitch.translatesAutoresizingMaskIntoConstraints = NO;
-    self.lockSwitch.on = YES;
+    self.lockSwitch.on = locked = YES;
     [self.lockSwitch addTarget:self action:@selector(lockStateChanged:) forControlEvents:UIControlEventValueChanged];
 
     [self.view addSubview:self.lockSwitch];
 
     self.lockSwitchLabel = [[UILabel alloc] init];
     self.lockSwitchLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    self.lockSwitchLabel.text = [self switchLabel:YES];
+    self.lockSwitchLabel.text = [self switchLabel];
     self.lockSwitchLabel.textColor = [UIColor systemGrayColor];
     self.lockSwitchLabel.textAlignment = NSTextAlignmentCenter;
     self.lockSwitchLabel.numberOfLines = 2;
@@ -213,16 +214,14 @@
 
     for (NSInteger i = 0; i < sliderCount; i++) {
         UIColor *color = [self color:i];
+
         UISlider *slider = [[UISlider alloc] init];
         slider.translatesAutoresizingMaskIntoConstraints = NO;
         slider.minimumValue = 0;
         slider.maximumValue = dual ? 100 : 255;
         slider.value = 0;
-
         slider.minimumTrackTintColor = color;
-
         slider.transform = CGAffineTransformMakeRotation(-M_PI_2);
-
         slider.tag = i;
         [slider addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
 
@@ -235,6 +234,12 @@
         label.textColor = color;
         label.textAlignment = NSTextAlignmentCenter;
         label.font = [UIFont systemFontOfSize:14];
+        label.tag = i;
+
+        UITapGestureRecognizer *labelTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sliderValueTapped:)];
+        labelTap.numberOfTapsRequired = 1;
+        label.userInteractionEnabled = YES;
+        [label addGestureRecognizer:labelTap];
 
         [self.view addSubview:label];
         [self.sliderLabels addObject:label];
@@ -244,6 +249,12 @@
         valueLabel.text = @"0";
         valueLabel.textColor = color;
         valueLabel.textAlignment = NSTextAlignmentCenter;
+        valueLabel.tag = i;
+
+        UITapGestureRecognizer *valueLabelTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sliderValueTapped:)];
+        valueLabelTap.numberOfTapsRequired = 1;
+        valueLabel.userInteractionEnabled = YES;
+        [valueLabel addGestureRecognizer:valueLabelTap];
 
         [self.view addSubview:valueLabel];
         [self.sliderValueLabels addObject:valueLabel];
@@ -316,6 +327,17 @@
     [NSLayoutConstraint activateConstraints:self.sliderValueLabelConstraints];
 }
 
+- (void)sliderValueTapped:(UITapGestureRecognizer *)sender {
+    if (!locked) return;
+    UILabel *label = (UILabel *)sender.view;
+    UISlider *slider = self.sliders[label.tag];
+    if (slider.value == 0)
+        slider.value = slider.maximumValue;
+    else
+        slider.value = 0;
+    [self sliderValueChanged:slider];
+}
+
 - (void)sliderValueChanged:(UISlider *)sender {
     int value = round(sender.value);
     if (dual) {
@@ -352,7 +374,7 @@
 }
 
 - (void)lockStateChanged:(UISwitch *)sender {
-    BOOL locked = sender.on;
+    locked = sender.on;
     if (locked)
         [self setupStream];
     else {
@@ -362,9 +384,10 @@
             streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchLevel"), (__bridge CFNumberRef)@(0));
         [self releaseStream];
     }
-    self.lockSwitchLabel.text = [self switchLabel:locked];
+    self.lockSwitchLabel.text = [self switchLabel];
     for (UISlider *slider in self.sliders) {
         slider.value = 0;
+        [self sliderValueChanged:slider];
         slider.enabled = locked;
         [slider setNeedsLayout];
     }
