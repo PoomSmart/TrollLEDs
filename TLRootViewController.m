@@ -1,20 +1,8 @@
-#import "TLRootViewController.h"
-#include <objc/objc.h>
-#import "Header.h"
+#import <objc/objc.h>
 #import <UIKit/UIColor+Private.h>
-#import <dlfcn.h>
+#import "TLRootViewController.h"
 
 @interface TLRootViewController () {
-    pid_t pid;
-    int client;
-    Class BWFigCaptureDeviceVendorClass;
-    BWFigCaptureDeviceVendor *vendor;
-    BWFigCaptureDevice *device;
-    BWFigCaptureStream *stream;
-    OpaqueFigCaptureDeviceRef deviceRef;
-    OpaqueFigCaptureStreamRef streamRef;
-    CMBaseObjectSetPropertyFunction streamSetProperty;
-    BOOL dual;
     BOOL locked;
     double LEDLevel;
     int WarmLEDPercentile;
@@ -23,6 +11,7 @@
     int WarmLED0Level;
     int WarmLED1Level;
 }
+@property (nonatomic, strong) TLDeviceManager *deviceManager;
 @property (nonatomic, strong) NSMutableArray <UISlider *> *sliders;
 @property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *sliderConstraints;
 @property (nonatomic, strong) NSMutableArray <UILabel *> *sliderLabels;
@@ -37,17 +26,85 @@
 
 @implementation TLRootViewController
 
-- (void)checkType {
-    void *IOKit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW);
-    mach_port_t *kIOMasterPortDefault = (mach_port_t *)dlsym(IOKit, "kIOMasterPortDefault");
-    CFMutableDictionaryRef (*IOServiceMatching)(const char *name) = (CFMutableDictionaryRef (*)(const char *))dlsym(IOKit, "IOServiceMatching");
-    mach_port_t (*IOServiceGetMatchingService)(mach_port_t masterPort, CFDictionaryRef matching) = (mach_port_t (*)(mach_port_t, CFDictionaryRef))dlsym(IOKit, "IOServiceGetMatchingService");
-    kern_return_t (*IOObjectRelease)(mach_port_t object) = (kern_return_t (*)(mach_port_t))dlsym(IOKit, "IOObjectRelease");
-    mach_port_t h9 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH9CamIn"));
-    mach_port_t h6 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH6CamIn"));
-    dual = h9 || h6;
-    if (h9) IOObjectRelease(h9);
-    if (h6) IOObjectRelease(h6);
+@synthesize deviceManager = _deviceManager;
+@synthesize shortcutAction = _shortcutAction;
+@synthesize sliders = _sliders;
+@synthesize sliderConstraints = _sliderConstraints;
+@synthesize sliderLabels = _sliderLabels;
+@synthesize sliderLabelConstraints = _sliderLabelConstraints;
+@synthesize sliderValueLabels = _sliderValueLabels;
+@synthesize sliderValueLabelConstraints = _sliderValueLabelConstraints;
+@synthesize lockSwitch = _lockSwitch;
+@synthesize lockSwitchConstraints = _lockSwitchConstraints;
+@synthesize lockSwitchLabel = _lockSwitchLabel;
+@synthesize lockSwitchLabelConstraints = _lockSwitchLabelConstraints;
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        [self initDeviceManager];
+    }
+    return self;
+}
+
+- (void)initDeviceManager {
+    _deviceManager = [[TLDeviceManager alloc] init];
+    [_deviceManager initVendor];
+    [_deviceManager setupStream];
+    [_deviceManager checkType];
+}
+
+- (void)setupStream {
+    [_deviceManager setupStream];
+}
+
+- (void)releaseStream {
+    [_deviceManager releaseStream];
+}
+
+- (void)handleShortcutAction:(NSString *)shortcutType {
+    BOOL legacy = [_deviceManager isLegacyLEDs];
+    BOOL quad = [_deviceManager isQuadLEDs];
+    if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AmberOn"]) {
+        if (legacy) {
+            LEDLevel = 100;
+            WarmLEDPercentile = 100;
+        } else {
+            CoolLED0Level = 0;
+            CoolLED1Level = 0;
+            WarmLED0Level = 255;
+            WarmLED1Level = quad ? 255 : 0;
+        } 
+    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.WhiteOn"]) {
+        if (legacy) {
+            LEDLevel = 100;
+            WarmLEDPercentile = 0;
+        } else {
+            CoolLED0Level = 255;
+            CoolLED1Level = quad ? 255 : 0;
+            WarmLED0Level = 0;
+            WarmLED1Level = 0;
+        }
+    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AllOn"]) {
+        if (!legacy) {
+            CoolLED0Level = 255;
+            CoolLED1Level = quad ? 255 : 0;
+            WarmLED0Level = 255;
+            WarmLED1Level = quad ? 255 : 0;
+        }
+    }
+    if (legacy) {
+        _sliders[0].value = LEDLevel;
+        _sliders[1].value = WarmLEDPercentile;
+    } else {
+        _sliders[0].value = CoolLED0Level;
+        _sliders[1].value = CoolLED1Level;
+        _sliders[2].value = WarmLED0Level;
+        _sliders[3].value = WarmLED1Level;
+    }
+    for (int i = 0; i < _sliders.count; i++)
+        [self updateSliderValueLabel:i withValue:_sliders[i].value];
+    [self updateParameters];
 }
 
 - (void)printError:(NSString *)errorText {
@@ -63,87 +120,8 @@
     ]];
 }
 
-- (void)initVendor {
-    if (!dlopen("/System/Library/PrivateFrameworks/CMCapture.framework/CMCapture", RTLD_NOW))
-        dlopen("/System/Library/PrivateFrameworks/Celestial.framework/Celestial", RTLD_NOW);
-    BWFigCaptureDeviceVendorClass = NSClassFromString(@"BWFigCaptureDeviceVendor");
-    if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(sharedCaptureDeviceVendor)])
-        vendor = [BWFigCaptureDeviceVendorClass sharedCaptureDeviceVendor];
-    else
-        vendor = [BWFigCaptureDeviceVendorClass sharedInstance];
-    pid = getpid();
-}
-
-- (BOOL)setupStream {
-    NSString *clientDescription = @"TrollLEDs application";
-    if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(copyDefaultVideoDeviceWithStealingBehavior:forPID:clientIDOut:withDeviceAvailabilityChangedHandler:)]) {
-        deviceRef = [BWFigCaptureDeviceVendorClass copyDefaultVideoDeviceWithStealingBehavior:1 forPID:pid clientIDOut:&client withDeviceAvailabilityChangedHandler:NULL];
-        streamRef = [BWFigCaptureDeviceVendorClass copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:deviceRef];
-    } else {
-        if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:clientPriority:canStealFromClientsWithSamePriority:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-            client = [vendor registerClientWithPID:pid clientDescription:clientDescription clientPriority:1 canStealFromClientsWithSamePriority:NO deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
-        else if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-            client = [vendor registerClientWithPID:pid clientDescription:clientDescription stealingBehavior:1 deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
-        else if ([vendor respondsToSelector:@selector(registerClientWithPID:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
-            client = [vendor registerClientWithPID:pid stealingBehavior:1 deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
-        else {
-            [self printError:@"Could not register client"];
-            return NO;
-        }
-        int error;
-        if ([vendor respondsToSelector:@selector(copyDeviceForClient:informClientWhenDeviceAvailableAgain:error:)])
-            device = [vendor copyDeviceForClient:client informClientWhenDeviceAvailableAgain:NO error:&error];
-        else if ([vendor respondsToSelector:@selector(copyDeviceForClient:error:)])
-            device = [vendor copyDeviceForClient:client error:&error];
-        else if ([vendor respondsToSelector:@selector(copyDeviceForClient:)]) {
-            deviceRef = [vendor copyDeviceForClient:client];
-            SEL selector = @selector(copyStreamForFlashlightWithPosition:deviceType:forDevice:);
-            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:[vendor methodSignatureForSelector:selector]];
-            inv.selector = selector;
-            inv.target = vendor;
-            int position = 1;
-            [inv setArgument:&position atIndex:2];
-            int deviceType = 2;
-            [inv setArgument:&deviceType atIndex:3];
-            [inv setArgument:&deviceRef atIndex:4];
-            [inv invoke];
-            [inv getReturnValue:&streamRef];
-        } else {
-            [self printError:@"Could not get device"];
-            return NO;
-        }
-    }
-    if (streamRef) {
-        const CMBaseVTable *vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
-        streamSetProperty = vtable->baseClass->setProperty;
-    } else
-        stream = [vendor copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:device];
-    if (!streamSetProperty && !stream) {
-        [self printError:@"Could not get stream"];
-        return NO;
-    }
-    return YES;
-}
-
-- (void)releaseStream {
-    if ([vendor respondsToSelector:@selector(takeBackDevice:forClient:informClientWhenDeviceAvailableAgain:)])
-        [vendor takeBackDevice:device forClient:client informClientWhenDeviceAvailableAgain:NO];
-    else if ([vendor respondsToSelector:@selector(takeBackFlashlightDevice:forPID:)])
-        [vendor takeBackFlashlightDevice:deviceRef forPID:pid];
-    else if ([vendor respondsToSelector:@selector(takeBackDevice:forClient:)])
-        [vendor takeBackDevice:deviceRef forClient:client];
-    if (streamRef)
-        CFRelease(streamRef);
-    deviceRef = NULL;
-    streamRef = NULL;
-    streamSetProperty = NULL;
-    device = nil;
-    stream = nil;
-    client = 0;
-}
-
 - (NSString *)labelText:(int)index {
-    if (dual) {
+    if ([_deviceManager isLegacyLEDs]) {
         switch (index) {
             case 0:
                 return @"Torch Level";
@@ -166,7 +144,7 @@
 }
 
 - (UIColor *)color:(int)index {
-    BOOL isWarm = dual ? index == 1 : (index == 2 || index == 3);
+    BOOL isWarm = [_deviceManager isLegacyLEDs] ? index == 1 : (index == 2 || index == 3);
     return isWarm ? [UIColor systemOrangeColor] : [UIColor whiteColor];
 }
 
@@ -176,41 +154,46 @@
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
-    [self initVendor];
-	if (![self setupStream]) return;
-    [self checkType];
+
+    NSString *currentError = _deviceManager.currentError;
+    if (currentError) {
+        [self printError:currentError];
+        return;
+    }
+    
+    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
 
     UITableView *tableView = (UITableView *)self.view;
     tableView.scrollEnabled = NO;
     tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
     tableView.backgroundColor = [UIColor blackColor];
 
-    self.sliders = [[NSMutableArray alloc] init];
-    self.sliderConstraints = [[NSMutableArray alloc] init];
-    self.sliderLabels = [[NSMutableArray alloc] init];
-    self.sliderLabelConstraints = [[NSMutableArray alloc] init];
-    self.sliderValueLabels = [[NSMutableArray alloc] init];
-    self.sliderValueLabelConstraints = [[NSMutableArray alloc] init];
-    self.lockSwitchConstraints = [[NSMutableArray alloc] init];
-    self.lockSwitchLabelConstraints = [[NSMutableArray alloc] init];
-    int sliderCount = dual ? 2 : 4;
+    _sliders = [[NSMutableArray alloc] init];
+    _sliderConstraints = [[NSMutableArray alloc] init];
+    _sliderLabels = [[NSMutableArray alloc] init];
+    _sliderLabelConstraints = [[NSMutableArray alloc] init];
+    _sliderValueLabels = [[NSMutableArray alloc] init];
+    _sliderValueLabelConstraints = [[NSMutableArray alloc] init];
+    _lockSwitchConstraints = [[NSMutableArray alloc] init];
+    _lockSwitchLabelConstraints = [[NSMutableArray alloc] init];
+    int sliderCount = isLegacyLEDs ? 2 : 4;
 
-    self.lockSwitch = [[UISwitch alloc] init];
-    self.lockSwitch.translatesAutoresizingMaskIntoConstraints = NO;
-    self.lockSwitch.on = locked = YES;
-    [self.lockSwitch addTarget:self action:@selector(lockStateChanged:) forControlEvents:UIControlEventValueChanged];
+    _lockSwitch = [[UISwitch alloc] init];
+    _lockSwitch.translatesAutoresizingMaskIntoConstraints = NO;
+    _lockSwitch.on = locked = YES;
+    [_lockSwitch addTarget:self action:@selector(lockStateChanged:) forControlEvents:UIControlEventValueChanged];
 
-    [self.view addSubview:self.lockSwitch];
+    [self.view addSubview:_lockSwitch];
 
-    self.lockSwitchLabel = [[UILabel alloc] init];
-    self.lockSwitchLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    self.lockSwitchLabel.text = [self switchLabel];
-    self.lockSwitchLabel.textColor = [UIColor systemGrayColor];
-    self.lockSwitchLabel.textAlignment = NSTextAlignmentCenter;
-    self.lockSwitchLabel.numberOfLines = 2;
-    self.lockSwitchLabel.font = [UIFont systemFontOfSize:14];
+    _lockSwitchLabel = [[UILabel alloc] init];
+    _lockSwitchLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    _lockSwitchLabel.text = [self switchLabel];
+    _lockSwitchLabel.textColor = [UIColor systemGrayColor];
+    _lockSwitchLabel.textAlignment = NSTextAlignmentCenter;
+    _lockSwitchLabel.numberOfLines = 2;
+    _lockSwitchLabel.font = [UIFont systemFontOfSize:14];
 
-    [self.view addSubview:self.lockSwitchLabel];
+    [self.view addSubview:_lockSwitchLabel];
 
     for (NSInteger i = 0; i < sliderCount; i++) {
         UIColor *color = [self color:i];
@@ -218,7 +201,7 @@
         UISlider *slider = [[UISlider alloc] init];
         slider.translatesAutoresizingMaskIntoConstraints = NO;
         slider.minimumValue = 0;
-        slider.maximumValue = dual ? 100 : 255;
+        slider.maximumValue = isLegacyLEDs ? 100 : 255;
         slider.value = 0;
         slider.minimumTrackTintColor = color;
         slider.transform = CGAffineTransformMakeRotation(-M_PI_2);
@@ -226,7 +209,7 @@
         [slider addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
 
         [self.view addSubview:slider];
-        [self.sliders addObject:slider];
+        [_sliders addObject:slider];
 
         UILabel *label = [[UILabel alloc] init];
         label.translatesAutoresizingMaskIntoConstraints = NO;
@@ -242,7 +225,7 @@
         [label addGestureRecognizer:labelTap];
 
         [self.view addSubview:label];
-        [self.sliderLabels addObject:label];
+        [_sliderLabels addObject:label];
 
         UILabel *valueLabel = [[UILabel alloc] init];
         valueLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -257,80 +240,85 @@
         [valueLabel addGestureRecognizer:valueLabelTap];
 
         [self.view addSubview:valueLabel];
-        [self.sliderValueLabels addObject:valueLabel];
+        [_sliderValueLabels addObject:valueLabel];
+    }
+
+    if (_shortcutAction) {
+        [self handleShortcutAction:_shortcutAction];
+        _shortcutAction = nil;
     }
 }
 
 - (void)viewWillLayoutSubviews {
     [super viewWillLayoutSubviews];
 
-    [NSLayoutConstraint deactivateConstraints:self.sliderConstraints];
-    [NSLayoutConstraint deactivateConstraints:self.sliderLabelConstraints];
-    [NSLayoutConstraint deactivateConstraints:self.sliderValueLabelConstraints];
-    [NSLayoutConstraint deactivateConstraints:self.lockSwitchConstraints];
-    [NSLayoutConstraint deactivateConstraints:self.lockSwitchLabelConstraints];
-    [self.sliderConstraints removeAllObjects];
-    [self.sliderLabelConstraints removeAllObjects];
-    [self.sliderValueLabelConstraints removeAllObjects];
-    [self.lockSwitchConstraints removeAllObjects];
-    [self.lockSwitchLabelConstraints removeAllObjects];
+    [NSLayoutConstraint deactivateConstraints:_sliderConstraints];
+    [NSLayoutConstraint deactivateConstraints:_sliderLabelConstraints];
+    [NSLayoutConstraint deactivateConstraints:_sliderValueLabelConstraints];
+    [NSLayoutConstraint deactivateConstraints:_lockSwitchConstraints];
+    [NSLayoutConstraint deactivateConstraints:_lockSwitchLabelConstraints];
+    [_sliderConstraints removeAllObjects];
+    [_sliderLabelConstraints removeAllObjects];
+    [_sliderValueLabelConstraints removeAllObjects];
+    [_lockSwitchConstraints removeAllObjects];
+    [_lockSwitchLabelConstraints removeAllObjects];
 
-    UISwitch *lockSwitch = self.lockSwitch;
+    UISwitch *lockSwitch = _lockSwitch;
 
     NSLayoutConstraint *lockSwitchCenterX = [lockSwitch.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
     NSLayoutConstraint *lockSwitchTop = [lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20];
 
-    [self.lockSwitchConstraints addObjectsFromArray:@[lockSwitchCenterX, lockSwitchTop]];
-    [NSLayoutConstraint activateConstraints:self.lockSwitchConstraints];
+    [_lockSwitchConstraints addObjectsFromArray:@[lockSwitchCenterX, lockSwitchTop]];
+    [NSLayoutConstraint activateConstraints:_lockSwitchConstraints];
 
-    UILabel *lockSwitchLabel = self.lockSwitchLabel;
+    UILabel *lockSwitchLabel = _lockSwitchLabel;
 
     NSLayoutConstraint *lockSwitchLabelCenterX = [lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
     NSLayoutConstraint *lockSwitchLabelTop = [lockSwitchLabel.topAnchor constraintEqualToAnchor:lockSwitch.bottomAnchor constant:10];
     NSLayoutConstraint *lockSwitchLabelWidth = [lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
 
-    [self.lockSwitchLabelConstraints addObjectsFromArray:@[lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth]];
-    [NSLayoutConstraint activateConstraints:self.lockSwitchLabelConstraints];
+    [_lockSwitchLabelConstraints addObjectsFromArray:@[lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth]];
+    [NSLayoutConstraint activateConstraints:_lockSwitchLabelConstraints];
 
     CGFloat sliderWidth = 30.0;
     CGFloat sliderHeight = self.view.bounds.size.height * 0.4;
-    CGFloat totalSlidersWidth = self.sliders.count * sliderWidth;
-    CGFloat spacing = (self.view.bounds.size.width - totalSlidersWidth) / (self.sliders.count + 1);
+    CGFloat totalSlidersWidth = _sliders.count * sliderWidth;
+    CGFloat spacing = (self.view.bounds.size.width - totalSlidersWidth) / (_sliders.count + 1);
 
-    for (NSInteger i = 0; i < self.sliders.count; i++) {
-        UISlider *slider = self.sliders[i];
+    for (NSInteger i = 0; i < _sliders.count; i++) {
+        UISlider *slider = _sliders[i];
 
         NSLayoutConstraint *centerX = [slider.centerXAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:(i + 1) * spacing + i * sliderWidth + sliderWidth / 2];
         NSLayoutConstraint *centerY = [slider.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor];
         NSLayoutConstraint *width = [slider.widthAnchor constraintEqualToConstant:sliderHeight];
         NSLayoutConstraint *height = [slider.heightAnchor constraintEqualToConstant:sliderWidth];
 
-        [self.sliderConstraints addObjectsFromArray:@[centerX, centerY, width, height]];
+        [_sliderConstraints addObjectsFromArray:@[centerX, centerY, width, height]];
 
-        UILabel *label = self.sliderLabels[i];
+        UILabel *label = _sliderLabels[i];
 
         NSLayoutConstraint *labelCenterX = [label.centerXAnchor constraintEqualToAnchor:slider.centerXAnchor];
         NSLayoutConstraint *labelTop = [label.topAnchor constraintEqualToAnchor:slider.bottomAnchor constant:sliderHeight / 2 + 10];
 
-        [self.sliderLabelConstraints addObjectsFromArray:@[labelCenterX, labelTop]];
+        [_sliderLabelConstraints addObjectsFromArray:@[labelCenterX, labelTop]];
 
-        UILabel *valueLabel = self.sliderValueLabels[i];
+        UILabel *valueLabel = _sliderValueLabels[i];
 
         NSLayoutConstraint *valueLabelCenterX = [valueLabel.centerXAnchor constraintEqualToAnchor:slider.centerXAnchor];
         NSLayoutConstraint *valueLabelTop = [valueLabel.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:10];
 
-        [self.sliderValueLabelConstraints addObjectsFromArray:@[valueLabelCenterX, valueLabelTop]];
+        [_sliderValueLabelConstraints addObjectsFromArray:@[valueLabelCenterX, valueLabelTop]];
     }
 
-    [NSLayoutConstraint activateConstraints:self.sliderConstraints];
-    [NSLayoutConstraint activateConstraints:self.sliderLabelConstraints];
-    [NSLayoutConstraint activateConstraints:self.sliderValueLabelConstraints];
+    [NSLayoutConstraint activateConstraints:_sliderConstraints];
+    [NSLayoutConstraint activateConstraints:_sliderLabelConstraints];
+    [NSLayoutConstraint activateConstraints:_sliderValueLabelConstraints];
 }
 
 - (void)sliderValueTapped:(UITapGestureRecognizer *)sender {
     if (!locked) return;
     UILabel *label = (UILabel *)sender.view;
-    UISlider *slider = self.sliders[label.tag];
+    UISlider *slider = _sliders[label.tag];
     if (slider.value == 0)
         slider.value = slider.maximumValue;
     else
@@ -338,9 +326,14 @@
     [self sliderValueChanged:slider];
 }
 
+- (void)updateSliderValueLabel:(int)tag withValue:(int)value {
+    UILabel *valueLabel = _sliderValueLabels[tag];
+    valueLabel.text = [NSString stringWithFormat:@"%d", value];
+}
+
 - (void)sliderValueChanged:(UISlider *)sender {
     int value = round(sender.value);
-    if (dual) {
+    if ([_deviceManager isLegacyLEDs]) {
         switch (sender.tag) {
             case 0:
                 LEDLevel = sender.value / 100;
@@ -364,51 +357,37 @@
                 WarmLED1Level = value;
                 break;
         }
-
     }
 
-    UILabel *valueLabel = self.sliderValueLabels[sender.tag];
-    valueLabel.text = [NSString stringWithFormat:@"%d", value];
-
+    [self updateSliderValueLabel:sender.tag withValue:value];
     [self updateParameters];
 }
 
 - (void)lockStateChanged:(UISwitch *)sender {
     locked = sender.on;
     if (locked)
-        [self setupStream];
+        [_deviceManager setupStream];
     else {
-        if (stream)
-            [stream setProperty:CFSTR("TorchLevel") value:@(0)];
-        else if (streamRef)
-            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchLevel"), (__bridge CFNumberRef)@(0));
-        [self releaseStream];
+        [_deviceManager setNumberProperty:CFSTR("TorchLevel") value:@(0)];
+        [_deviceManager releaseStream];
     }
-    self.lockSwitchLabel.text = [self switchLabel];
-    for (UISlider *slider in self.sliders) {
+    _lockSwitchLabel.text = [self switchLabel];
+    for (UISlider *slider in _sliders) {
         slider.value = 0;
         [self sliderValueChanged:slider];
         slider.enabled = locked;
         [slider setNeedsLayout];
     }
-    for (UILabel *label in self.sliderValueLabels) {
-        label.text = @"0";
-    }
 }
 
 - (void)updateParameters {
-    if (dual) {
+    if ([_deviceManager isLegacyLEDs]) {
         NSNumber *torchLevelValue = @(LEDLevel);
         NSDictionary *torchColorValue = @{
             @"WarmLEDPercentile": @(WarmLEDPercentile)
         };
-        if (stream) {
-            [stream setProperty:CFSTR("TorchLevel") value:torchLevelValue];
-            [stream setProperty:CFSTR("TorchColor") value:torchColorValue];
-        } else if (streamRef) {
-            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchLevel"), (__bridge CFNumberRef)torchLevelValue);
-            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchColor"), (__bridge CFDictionaryRef)torchColorValue);
-        }
+        [_deviceManager setNumberProperty:CFSTR("TorchLevel") value:torchLevelValue];
+        [_deviceManager setDictionaryProperty:CFSTR("TorchColor") value:torchColorValue];
     } else {
         NSDictionary *params = @{
             @"CoolLED0Level": @(CoolLED0Level),
@@ -416,10 +395,7 @@
             @"WarmLED0Level": @(WarmLED0Level),
             @"WarmLED1Level": @(WarmLED1Level)
         };
-        if (stream)
-            [stream setProperty:CFSTR("TorchManualParameters") value:params];
-        else if (streamRef)
-            streamSetProperty((CMBaseObjectRef)streamRef, CFSTR("TorchManualParameters"), (__bridge CFDictionaryRef)params);
+        [_deviceManager setDictionaryProperty:CFSTR("TorchManualParameters") value:params];
     }
 }
 
