@@ -153,7 +153,7 @@
 }
 
 - (void)viewDidLoad {
-	[super viewDidLoad];
+    [super viewDidLoad];
 
     NSString *currentError = _deviceManager.currentError;
     if (currentError) {

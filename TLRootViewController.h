@@ -9,3 +9,5 @@
 - (void)setupStream;
 - (void)releaseStream;
 @end
+
+#define KILL_TIMEOUT 300

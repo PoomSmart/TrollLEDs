@@ -2,7 +2,7 @@
 #import "TLAppDelegate.h"
 
 int main(int argc, char *argv[]) {
-    NSString * appDelegateClassName;
+    NSString *appDelegateClassName;
     @autoreleasepool {
         appDelegateClassName = NSStringFromClass([TLAppDelegate class]);
     }

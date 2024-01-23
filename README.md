@@ -6,7 +6,7 @@
 
 ## Supported Devices
 
-- iOS 12 or higher (Tested on iOS 12, 14, 15, 16, 17), lower versions are not supported/tested
+- iOS 12 or higher, lower versions are not supported/tested
 - iPhone or iPad with multiple of different flashlight LEDs (e.g. amber and regular white)
 - Devices with single-color flashlight LED(s) are not supported, such as iPhone 4s and iPhone 5
 - **iPhone 14 series and higher are not supported**, as [Apple has completely redesigned the flashlight LEDs](https://appleinsider.com/articles/22/09/20/how-iphone-14-pro-adaptive-true-tone-flash-creates-perfect-light-for-your-photos)
@@ -39,22 +39,22 @@ Unlike [Amber tweak](https://github.com/PoomSmart/Amber), this app cannot force 
 
 ## Limitation
 
+### Exclusive Control
+
 TrollLEDs utilizes the `mediaserverd`-exclusive `BWFigCaptureDeviceVendor` class to control the flashlight LEDs.
 This creates an instance of `BWFigCaptureDevice` (or `OpaqueFigCaptureDeviceRef`). There can only be one instance at a time, so if there is another app that creates it (i.e., `mediaserverd`), TrollLEDs will not be able to control the flashlight LEDs.
 This is why there is a switch at the top of the app to lock the flashlight LEDs to TrollLEDs only. If you want to use the LEDs (or use the Camera app) from somewhere else, you can either turn off the switch (and wait few seconds) or kill the app.
 
+### Battery Concern
+
+As long as TrollLEDs app is running, the flashlight device connection will be kept alive. This may cause battery drain, as reported by some users. To mitigate this issue, the app will automatically kill itself after 5 minutes of inactivity.
+
 ## Building
 
-As `.tipa`:
+Build `.tipa` (sandboxed and unsandboxed) and `.deb` (rootful and rootless) with:
 
 ```sh
-make package FINALPACKAGE=1 PACKAGE_FORMAT=ipa
-```
-
-AS `.deb`:
-
-```sh
-make package FINALPACKAGE=1
+./build.sh
 ```
 
 ## Future Plans
