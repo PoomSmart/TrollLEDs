@@ -22,12 +22,9 @@
     CFMutableDictionaryRef (*IOServiceMatching)(const char *name) = (CFMutableDictionaryRef (*)(const char *))dlsym(IOKit, "IOServiceMatching");
     mach_port_t (*IOServiceGetMatchingService)(mach_port_t masterPort, CFDictionaryRef matching) = (mach_port_t (*)(mach_port_t, CFDictionaryRef))dlsym(IOKit, "IOServiceGetMatchingService");
     kern_return_t (*IOObjectRelease)(mach_port_t object) = (kern_return_t (*)(mach_port_t))dlsym(IOKit, "IOObjectRelease");
-    mach_port_t h13 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH13CamIn"));
     mach_port_t h9 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH9CamIn"));
     mach_port_t h6 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH6CamIn"));
-    quadLEDs = h13;
     legacyLEDs = h9 || h6;
-    if (h13) IOObjectRelease(h13);
     if (h9) IOObjectRelease(h9);
     if (h6) IOObjectRelease(h6);
 }
@@ -107,10 +104,6 @@
 
 - (BOOL)isLegacyLEDs {
     return legacyLEDs;
-}
-
-- (BOOL)isQuadLEDs {
-    return quadLEDs;
 }
 
 - (void)setNumberProperty:(CFStringRef)property value:(id)value {

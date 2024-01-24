@@ -15,6 +15,8 @@
 
 Quad-LEDs devices are devices with four programmatically configurable flashlight LEDs, two white and two amber. This includes the devices such as iPhone 11 and iPad Pro 3rd generation.
 
+### Sliders
+
 There are four sliders in the app:
 
 1. `Cool LED 0` - The brightness of the first white LED
@@ -25,6 +27,18 @@ There are four sliders in the app:
 Each slider can be adjusted independently. The more the value, the more brightness of the LED will get. If the value is set to 0, the LED will be off. If all sliders are set to 0, all LEDs will be off.
 
 Devices with four physical LEDs such as iPad Pro 3rd generation will get the maximum brightness of the LEDs when all sliders are set to 100%. However, devices with two physical LEDs such as iPhone 11 will get the maximum brightness of the LEDs when `Cool LED 0` and `Warm LED 0` are set to 100%, while the others are set to 0%. The `Cool LED 1` and `Warm LED 1` sliders only act as a low brightness mode for their `LED 0` equivalent.
+
+### Physical LED Count
+
+Despite being categorized as a quad-LEDs device, it may have only two physical LEDs. TrollLEDs allows you to explicitly set the physical LED count in the app (There is no good way to automatically detect the physical LED count, yet).
+
+If the value is set to `Dual`:
+
+1. The app shortcut `Amber On` will maximize the `Warm LED 0` slider only
+2. The app shortcut `White On` will maximize the `Cool LED 0` slider only
+3. The app shortcut `All On` will maximize the `Cool LED 0` and `Warm LED 0` sliders only
+
+If the value is set to `Quad`, the app shortcuts will maximize all related sliders.
 
 ## Usage (Dual-LEDs Devices)
 

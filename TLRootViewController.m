@@ -1,4 +1,6 @@
+#include <Foundation/Foundation.h>
 #import <objc/objc.h>
+#import <theos/IOSMacros.h>
 #import <UIKit/UIColor+Private.h>
 #import "TLRootViewController.h"
 
@@ -22,6 +24,10 @@
 @property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *lockSwitchConstraints;
 @property (nonatomic, strong) UILabel *lockSwitchLabel;
 @property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *lockSwitchLabelConstraints;
+@property (nonatomic, strong) UISegmentedControl *ledCount;
+@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *ledCountConstraints;
+@property (nonatomic, strong) UILabel *ledCountLabel;
+@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *ledCountLabelConstraints;
 @end
 
 @implementation TLRootViewController
@@ -38,6 +44,8 @@
 @synthesize lockSwitchConstraints = _lockSwitchConstraints;
 @synthesize lockSwitchLabel = _lockSwitchLabel;
 @synthesize lockSwitchLabelConstraints = _lockSwitchLabelConstraints;
+@synthesize ledCount = _ledCount;
+@synthesize ledCountConstraints = _ledCountConstraints;
 
 - (instancetype)init {
     self = [super init];
@@ -62,9 +70,13 @@
     [_deviceManager releaseStream];
 }
 
+- (BOOL)isQuadLEDs {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"TLQuadLEDs"];
+}
+
 - (void)handleShortcutAction:(NSString *)shortcutType {
     BOOL legacy = [_deviceManager isLegacyLEDs];
-    BOOL quad = [_deviceManager isQuadLEDs];
+    BOOL quad = [self isQuadLEDs];
     if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AmberOn"]) {
         if (legacy) {
             LEDLevel = 100;
@@ -152,31 +164,16 @@
     return locked ? @"On: Only TrollLEDs can control the LEDs" : @"Off: Release the LEDs to other apps (this may take few seconds)";
 }
 
-- (void)viewDidLoad {
-    [super viewDidLoad];
-
-    NSString *currentError = _deviceManager.currentError;
-    if (currentError) {
-        [self printError:currentError];
-        return;
-    }
-    
-    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
-
+- (void)configureTableView {
     UITableView *tableView = (UITableView *)self.view;
     tableView.scrollEnabled = NO;
     tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
     tableView.backgroundColor = [UIColor blackColor];
+}
 
-    _sliders = [[NSMutableArray alloc] init];
-    _sliderConstraints = [[NSMutableArray alloc] init];
-    _sliderLabels = [[NSMutableArray alloc] init];
-    _sliderLabelConstraints = [[NSMutableArray alloc] init];
-    _sliderValueLabels = [[NSMutableArray alloc] init];
-    _sliderValueLabelConstraints = [[NSMutableArray alloc] init];
+- (void)configureLockSwitch {
     _lockSwitchConstraints = [[NSMutableArray alloc] init];
     _lockSwitchLabelConstraints = [[NSMutableArray alloc] init];
-    int sliderCount = isLegacyLEDs ? 2 : 4;
 
     _lockSwitch = [[UISwitch alloc] init];
     _lockSwitch.translatesAutoresizingMaskIntoConstraints = NO;
@@ -194,6 +191,36 @@
     _lockSwitchLabel.font = [UIFont systemFontOfSize:14];
 
     [self.view addSubview:_lockSwitchLabel];
+}
+
+- (void)configureLEDCount {
+    _ledCountConstraints = [[NSMutableArray alloc] init];
+    _ledCountLabelConstraints = [[NSMutableArray alloc] init];
+
+    _ledCount = [[UISegmentedControl alloc] initWithItems:@[@"Dual", @"Quad"]];
+    _ledCount.translatesAutoresizingMaskIntoConstraints = NO;
+    _ledCount.selectedSegmentIndex = [self isQuadLEDs] ? 1 : 0;
+    [_ledCount addTarget:self action:@selector(ledCountChanged:) forControlEvents:UIControlEventValueChanged];
+
+    [self.view addSubview:_ledCount];
+
+    _ledCountLabel = [[UILabel alloc] init];
+    _ledCountLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    _ledCountLabel.text = @"Physical LED Count";
+    _ledCountLabel.textColor = [UIColor systemGrayColor];
+    _ledCountLabel.textAlignment = NSTextAlignmentCenter;
+    _ledCountLabel.font = [UIFont systemFontOfSize:14];
+
+    [self.view addSubview:_ledCountLabel];
+}
+
+- (void)configureLEDSliders:(int)sliderCount maximumValue:(int)maximumValue {
+    _sliders = [[NSMutableArray alloc] init];
+    _sliderConstraints = [[NSMutableArray alloc] init];
+    _sliderLabels = [[NSMutableArray alloc] init];
+    _sliderLabelConstraints = [[NSMutableArray alloc] init];
+    _sliderValueLabels = [[NSMutableArray alloc] init];
+    _sliderValueLabelConstraints = [[NSMutableArray alloc] init];
 
     for (NSInteger i = 0; i < sliderCount; i++) {
         UIColor *color = [self color:i];
@@ -201,7 +228,7 @@
         UISlider *slider = [[UISlider alloc] init];
         slider.translatesAutoresizingMaskIntoConstraints = NO;
         slider.minimumValue = 0;
-        slider.maximumValue = isLegacyLEDs ? 100 : 255;
+        slider.maximumValue = maximumValue;
         slider.value = 0;
         slider.minimumTrackTintColor = color;
         slider.transform = CGAffineTransformMakeRotation(-M_PI_2);
@@ -242,6 +269,25 @@
         [self.view addSubview:valueLabel];
         [_sliderValueLabels addObject:valueLabel];
     }
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+
+    NSString *currentError = _deviceManager.currentError;
+    if (currentError) {
+        [self printError:currentError];
+        return;
+    }
+    
+    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
+    int sliderCount = isLegacyLEDs ? 2 : 4;
+
+    [self configureTableView];
+    [self configureLockSwitch];
+    if (!isLegacyLEDs)
+        [self configureLEDCount];
+    [self configureLEDSliders:sliderCount maximumValue:isLegacyLEDs ? 100 : 255];
 
     if (_shortcutAction) {
         [self handleShortcutAction:_shortcutAction];
@@ -252,36 +298,56 @@
 - (void)viewWillLayoutSubviews {
     [super viewWillLayoutSubviews];
 
+    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
+
     [NSLayoutConstraint deactivateConstraints:_sliderConstraints];
     [NSLayoutConstraint deactivateConstraints:_sliderLabelConstraints];
     [NSLayoutConstraint deactivateConstraints:_sliderValueLabelConstraints];
     [NSLayoutConstraint deactivateConstraints:_lockSwitchConstraints];
     [NSLayoutConstraint deactivateConstraints:_lockSwitchLabelConstraints];
+
     [_sliderConstraints removeAllObjects];
     [_sliderLabelConstraints removeAllObjects];
     [_sliderValueLabelConstraints removeAllObjects];
     [_lockSwitchConstraints removeAllObjects];
     [_lockSwitchLabelConstraints removeAllObjects];
 
-    UISwitch *lockSwitch = _lockSwitch;
+    if (!isLegacyLEDs) {
+        [NSLayoutConstraint deactivateConstraints:_ledCountConstraints];
+        [NSLayoutConstraint deactivateConstraints:_ledCountLabelConstraints];
+        [_ledCountConstraints removeAllObjects];
+        [_ledCountLabelConstraints removeAllObjects];
+    }
 
-    NSLayoutConstraint *lockSwitchCenterX = [lockSwitch.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-    NSLayoutConstraint *lockSwitchTop = [lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20];
+    NSLayoutConstraint *lockSwitchCenterX = [_lockSwitch.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *lockSwitchTop = [_lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20];
 
     [_lockSwitchConstraints addObjectsFromArray:@[lockSwitchCenterX, lockSwitchTop]];
     [NSLayoutConstraint activateConstraints:_lockSwitchConstraints];
 
-    UILabel *lockSwitchLabel = _lockSwitchLabel;
-
-    NSLayoutConstraint *lockSwitchLabelCenterX = [lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-    NSLayoutConstraint *lockSwitchLabelTop = [lockSwitchLabel.topAnchor constraintEqualToAnchor:lockSwitch.bottomAnchor constant:10];
-    NSLayoutConstraint *lockSwitchLabelWidth = [lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
+    NSLayoutConstraint *lockSwitchLabelCenterX = [_lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *lockSwitchLabelTop = [_lockSwitchLabel.topAnchor constraintEqualToAnchor:_lockSwitch.bottomAnchor constant:10];
+    NSLayoutConstraint *lockSwitchLabelWidth = [_lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
 
     [_lockSwitchLabelConstraints addObjectsFromArray:@[lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth]];
     [NSLayoutConstraint activateConstraints:_lockSwitchLabelConstraints];
 
+    if (!isLegacyLEDs) {
+        NSLayoutConstraint *ledCountCenterX = [_ledCount.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+        NSLayoutConstraint *ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20];
+
+        [_ledCountConstraints addObjectsFromArray:@[ledCountCenterX, ledCountBottom]];
+        [NSLayoutConstraint activateConstraints:_ledCountConstraints];
+
+        NSLayoutConstraint *ledCountLabelCenterX = [_ledCountLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+        NSLayoutConstraint *ledCountLabelBottom = [_ledCountLabel.bottomAnchor constraintEqualToAnchor:_ledCount.topAnchor constant:-10];
+
+        [_ledCountLabelConstraints addObjectsFromArray:@[ledCountLabelCenterX, ledCountLabelBottom]];
+        [NSLayoutConstraint activateConstraints:_ledCountLabelConstraints];
+    }
+
     CGFloat sliderWidth = 30.0;
-    CGFloat sliderHeight = self.view.bounds.size.height * 0.4;
+    CGFloat sliderHeight = self.view.bounds.size.height * (IS_IPAD || isLegacyLEDs ? 0.4 : 0.3);
     CGFloat totalSlidersWidth = _sliders.count * sliderWidth;
     CGFloat spacing = (self.view.bounds.size.width - totalSlidersWidth) / (_sliders.count + 1);
 
@@ -313,6 +379,10 @@
     [NSLayoutConstraint activateConstraints:_sliderConstraints];
     [NSLayoutConstraint activateConstraints:_sliderLabelConstraints];
     [NSLayoutConstraint activateConstraints:_sliderValueLabelConstraints];
+}
+
+- (void)ledCountChanged:(UISegmentedControl *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.selectedSegmentIndex == 1 forKey:@"TLQuadLEDs"];
 }
 
 - (void)sliderValueTapped:(UITapGestureRecognizer *)sender {

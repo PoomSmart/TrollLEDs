@@ -1,7 +1,7 @@
 TARGET := iphone:clang:latest:11.0
 INSTALL_TARGET_PROCESSES = TrollLEDs
 ARCHS = arm64
-PACKAGE_VERSION = 1.5.0
+PACKAGE_VERSION = 1.6.0
 
 include $(THEOS)/makefiles/common.mk
 

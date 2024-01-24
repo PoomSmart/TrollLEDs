@@ -12,11 +12,9 @@
     OpaqueFigCaptureStreamRef streamRef;
     CMBaseObjectSetPropertyFunction streamSetProperty;
     BOOL legacyLEDs;
-    BOOL quadLEDs;
 }
 @property (nonatomic, strong) NSString *currentError;
 - (BOOL)isLegacyLEDs;
-- (BOOL)isQuadLEDs;
 - (BOOL)setupStream;
 - (void)releaseStream;
 - (void)initVendor;
