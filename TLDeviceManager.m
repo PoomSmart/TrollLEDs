@@ -106,18 +106,11 @@
     return legacyLEDs;
 }
 
-- (void)setNumberProperty:(CFStringRef)property value:(id)value {
+- (void)setProperty:(CFStringRef)property value:(id)value {
     if (stream)
         [stream setProperty:property value:value];
     else if (streamRef)
-        streamSetProperty((CMBaseObjectRef)streamRef, property, (__bridge CFNumberRef)value);
-}
-
-- (void)setDictionaryProperty:(CFStringRef)property value:(id)value {
-    if (stream)
-        [stream setProperty:property value:value];
-    else if (streamRef)
-        streamSetProperty((CMBaseObjectRef)streamRef, property, (__bridge CFDictionaryRef)value);
+        streamSetProperty((CMBaseObjectRef)streamRef, property, (__bridge CFTypeRef)value);
 }
 
 @end

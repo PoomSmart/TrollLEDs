@@ -438,7 +438,7 @@
     if (locked)
         [_deviceManager setupStream];
     else {
-        [_deviceManager setNumberProperty:CFSTR("TorchLevel") value:@(0)];
+        [_deviceManager setProperty:CFSTR("TorchLevel") value:@(0)];
         [_deviceManager releaseStream];
     }
     _lockSwitchLabel.text = [self switchLabel];
@@ -456,8 +456,8 @@
         NSDictionary *torchColorValue = @{
             @"WarmLEDPercentile": @(WarmLEDPercentile)
         };
-        [_deviceManager setNumberProperty:CFSTR("TorchLevel") value:torchLevelValue];
-        [_deviceManager setDictionaryProperty:CFSTR("TorchColor") value:torchColorValue];
+        [_deviceManager setProperty:CFSTR("TorchLevel") value:torchLevelValue];
+        [_deviceManager setProperty:CFSTR("TorchColor") value:torchColorValue];
     } else {
         NSDictionary *params = @{
             @"CoolLED0Level": @(CoolLED0Level),
@@ -465,7 +465,7 @@
             @"WarmLED0Level": @(WarmLED0Level),
             @"WarmLED1Level": @(WarmLED1Level)
         };
-        [_deviceManager setDictionaryProperty:CFSTR("TorchManualParameters") value:params];
+        [_deviceManager setProperty:CFSTR("TorchManualParameters") value:params];
     }
 }
 

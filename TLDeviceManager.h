@@ -19,6 +19,5 @@
 - (void)releaseStream;
 - (void)initVendor;
 - (void)checkType;
-- (void)setNumberProperty:(CFStringRef)property value:(id)value;
-- (void)setDictionaryProperty:(CFStringRef)property value:(id)value;
+- (void)setProperty:(CFStringRef)property value:(id)value;
 @end
