@@ -2,7 +2,7 @@
 
  A TrollStore application to control individual flashlight LEDs for iOS devices.
 
- When used on a jailbroken device, remove Amber tweak becase this app will simply be overridden by it.
+ When used on a jailbroken device, remove Amber tweak because this app will simply be overridden by it.
 
 ## Supported Devices
 
