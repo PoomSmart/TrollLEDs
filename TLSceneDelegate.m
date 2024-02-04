@@ -15,7 +15,7 @@
 }
 
 - (void)windowScene:(UIWindowScene *)windowScene performActionForShortcutItem:(UIApplicationShortcutItem *)shortcutItem completionHandler:(void (^)(BOOL succeeded))completionHandler API_AVAILABLE(ios(13.0)) {
-    [_myViewController handleShortcutAction:shortcutItem.type];
+    [_myViewController handleShortcutAction:shortcutItem.type withParameters:nil];
     completionHandler(YES);
 }
 
@@ -41,8 +41,10 @@
         if (!url) continue;
         if ([url.scheme isEqualToString:@"leds"]) {
             NSString *action = url.host;
-            if (action)
-                [_myViewController handleShortcutAction:action];
+            if (action) {
+                NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+                [_myViewController handleShortcutAction:action withParameters:components.queryItems];
+            }
         }
     }
 }

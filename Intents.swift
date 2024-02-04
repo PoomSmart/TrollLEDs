@@ -57,3 +57,57 @@ struct AllOnIntent: AppIntent {
         return .result()
     }
 }
+
+@available(iOS 16.0, *)
+struct AllOffIntent: AppIntent {
+    static let title: LocalizedStringResource = "All Off"
+    static let description = IntentDescription(
+        "Turn off all LEDs",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.AllOff") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 16.0, *)
+struct ManualIntent: AppIntent {
+    static let title: LocalizedStringResource = "Manual"
+    static let description = IntentDescription(
+        "Configure LEDs levels manually (0 - 255) (For Quad-LEDs devices only)",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Cool LED 0", inclusiveRange: (0, 255))
+    var coolLED0: Int
+
+    @Parameter(title: "Cool LED 1", inclusiveRange: (0, 255))
+    var coolLED1: Int
+
+    @Parameter(title: "Warm LED 0", inclusiveRange: (0, 255))
+    var warmLED0: Int
+
+    @Parameter(title: "Warm LED 1", inclusiveRange: (0, 255))
+    var warmLED1: Int
+    
+    static var parameterSummary: some ParameterSummary {
+        Summary("Configure LEDs levels to (\(\.$coolLED0), \(\.$coolLED1), \(\.$warmLED0), \(\.$warmLED1))")
+    }
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.Manual?coolLED0=\(coolLED0)&coolLED1=\(coolLED1)&warmLED0=\(warmLED0)&warmLED1=\(warmLED1)") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}

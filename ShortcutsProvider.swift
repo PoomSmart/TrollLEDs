@@ -27,5 +27,21 @@ struct TrollLEDsAppShortcutsProvider: AppShortcutsProvider {
             shortTitle: "All On",
             systemImageName: "flashlight.on.circle.fill"
         )
+        AppShortcut(
+            intent: AllOffIntent(),
+            phrases: [
+                "Turn off all LEDs with \(.applicationName)"
+            ],
+            shortTitle: "All Off",
+            systemImageName: "flashlight.off.circle.fill"
+        )
+        AppShortcut(
+            intent: ManualIntent(),
+            phrases: [
+                "Configure LEDs levels manually with \(.applicationName)"
+            ],
+            shortTitle: "Manual",
+            systemImageName: "flashlight.on.circle.fill"
+        )
     }
 }

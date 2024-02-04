@@ -74,7 +74,7 @@
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"TLQuadLEDs"];
 }
 
-- (void)handleShortcutAction:(NSString *)shortcutType {
+- (void)handleShortcutAction:(NSString *)shortcutType withParameters:(NSArray <NSURLQueryItem *> *)parameters {
     BOOL legacy = [_deviceManager isLegacyLEDs];
     BOOL quad = [self isQuadLEDs];
     if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AmberOn"]) {
@@ -98,11 +98,35 @@
             WarmLED1Level = 0;
         }
     } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AllOn"]) {
-        if (!legacy) {
+        if (legacy) {
+            LEDLevel = 100;
+        } else {
             CoolLED0Level = 255;
             CoolLED1Level = quad ? 255 : 0;
             WarmLED0Level = 255;
             WarmLED1Level = quad ? 255 : 0;
+        }
+    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AllOff"]) {
+        if (legacy) {
+            LEDLevel = 0;
+        } else {
+            CoolLED0Level = 0;
+            CoolLED1Level = 0;
+            WarmLED0Level = 0;
+            WarmLED1Level = 0;
+        }
+    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.Manual"]) {
+        if (!legacy) {
+            for (NSURLQueryItem *parameter in parameters) {
+                if ([parameter.name isEqualToString:@"coolLED0"])
+                    CoolLED0Level = [parameter.value intValue];
+                else if ([parameter.name isEqualToString:@"coolLED1"])
+                    CoolLED1Level = [parameter.value intValue];
+                else if ([parameter.name isEqualToString:@"warmLED0"])
+                    WarmLED0Level = [parameter.value intValue];
+                else if ([parameter.name isEqualToString:@"warmLED1"])
+                    WarmLED1Level = [parameter.value intValue];
+            }
         }
     }
     if (legacy) {
@@ -290,7 +314,7 @@
     [self configureLEDSliders:sliderCount maximumValue:isLegacyLEDs ? 100 : 255];
 
     if (_shortcutAction) {
-        [self handleShortcutAction:_shortcutAction];
+        [self handleShortcutAction:_shortcutAction withParameters:nil];
         _shortcutAction = nil;
     }
 }

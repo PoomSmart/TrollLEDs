@@ -5,7 +5,7 @@
     TLDeviceManager *deviceManager;
 }
 @property (nonatomic, retain) NSString *shortcutAction;
-- (void)handleShortcutAction:(NSString *)action;
+- (void)handleShortcutAction:(NSString *)action withParameters:(NSArray <NSURLQueryItem *> *)params;
 - (void)setupStream;
 - (void)releaseStream;
 @end
