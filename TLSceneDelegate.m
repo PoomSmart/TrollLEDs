@@ -35,4 +35,16 @@
     });
 }
 
+- (void)scene:(UIScene *)scene openURLContexts:(NSSet <UIOpenURLContext *> *)URLContexts API_AVAILABLE(ios(13.0)) {
+    for (UIOpenURLContext *context in URLContexts) {
+        NSURL *url = context.URL;
+        if (!url) continue;
+        if ([url.scheme isEqualToString:@"leds"]) {
+            NSString *action = url.host;
+            if (action)
+                [_myViewController handleShortcutAction:action];
+        }
+    }
+}
+
 @end

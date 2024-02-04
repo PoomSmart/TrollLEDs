@@ -44,9 +44,9 @@
         <string>iPhoneOS</string>
     </array>
     <key>CFBundleShortVersionString</key>
-    <string>1.6.1</string>
+    <string>1.7.0</string>
     <key>CFBundleVersion</key>
-    <string>1.6.1</string>
+    <string>1.7.0</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>MinimumOSVersion</key>
@@ -115,6 +115,17 @@
             <string>All On</string>
             <key>UIApplicationShortcutItemType</key>
             <string>com.ps.TrollLEDs.AllOn</string>
+        </dict>
+    </array>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.ps.TrollLEDs</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>leds</string>
+            </array>
         </dict>
     </array>
 </dict>

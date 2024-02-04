@@ -41,4 +41,14 @@
     });
 }
 
+- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options {
+    if (!url) return NO;
+    if ([url.scheme isEqualToString:@"leds"]) {
+        NSString *action = url.host;
+        if (action)
+            [_myViewController handleShortcutAction:action];
+    }
+    return YES;
+}
+
 @end

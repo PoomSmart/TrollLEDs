@@ -1,7 +1,7 @@
 TARGET := iphone:clang:latest:11.0
 INSTALL_TARGET_PROCESSES = TrollLEDs
 ARCHS = arm64
-PACKAGE_VERSION = 1.6.1
+PACKAGE_VERSION = 1.7.0
 
 include $(THEOS)/makefiles/common.mk
 
@@ -13,7 +13,7 @@ else
 	IPA_NAME = $(APPLICATION_NAME)
 endif
 
-$(APPLICATION_NAME)_FILES = main.m TLDeviceManager.m TLSceneDelegate.m TLAppDelegate.m TLRootViewController.m
+$(APPLICATION_NAME)_FILES = main.m TLDeviceManager.m TLSceneDelegate.m TLAppDelegate.m TLRootViewController.m Intents.swift ShortcutsProvider.swift
 $(APPLICATION_NAME)_FRAMEWORKS = UIKit CoreGraphics CoreMedia
 $(APPLICATION_NAME)_CFLAGS = -fobjc-arc
 ifeq ($(UNSANDBOX),1)

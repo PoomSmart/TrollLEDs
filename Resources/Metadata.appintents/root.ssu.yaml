@@ -1,0 +1,55 @@
+apiVersion: ssu/v1
+nlu:
+  shortcuts:
+    bundleIdentifier: com.ps.TrollLEDs
+    intents:
+    - metadata:
+        name: AmberOnIntent_0
+        title: Amber On
+      corpuses:
+        training:
+        - locale: en_US
+          utterances:
+          - Turn on amber LEDs with ${+applicationName}
+    - metadata:
+        name: WhiteOnIntent_1
+        title: White On
+      corpuses:
+        training:
+        - locale: en_US
+          utterances:
+          - Turn on white LEDs with ${+applicationName}
+    - metadata:
+        name: AllOnIntent_2
+        title: All On
+      corpuses:
+        training:
+        - locale: en_US
+          utterances:
+          - Turn on all LEDs with ${+applicationName}
+    - metadata:
+        name: +negative
+      corpuses:
+        training:
+        - locale: en_US
+          utterances:
+          - ${+standardAppShortcutNegatives}
+variables:
+- name: +applicationName
+  type: ssu/expansion
+  definitions:
+  - locale: en_US
+    synomyms:
+    - TrollLEDs
+- name: +prefix
+  type: ssu/expansion
+  definitions:
+  - locale: en_US
+    synomyms:
+      $ref: ssu://Resources/prefix/en.yaml
+- name: +standardAppShortcutNegatives
+  type: ssu/expansion
+  definitions:
+  - locale: en_US
+    synomyms:
+      $ref: ssu://Resources/standardAppShortcutNegatives/en.yaml
