@@ -4,7 +4,7 @@
 
  When used on a jailbroken device, remove Amber tweak because this app will simply be overridden by it.
 
-## Supported Devices
+## Compatibility
 
 - iOS 11 or higher
 - iPhone or iPad with multiple of different flashlight LEDs (e.g. amber and regular white)
