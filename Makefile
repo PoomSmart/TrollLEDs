@@ -1,7 +1,11 @@
-TARGET := iphone:clang:latest:11.0
+ifeq ($(THEOS_PACKAGE_SCHEME),rootless)
+TARGET = iphone:clang:latest:15.0
+else
+TARGET = iphone:clang:latest:11.0
+endif
 INSTALL_TARGET_PROCESSES = TrollLEDs
 ARCHS = arm64
-PACKAGE_VERSION = 1.8.0
+PACKAGE_VERSION = 1.8.1
 
 include $(THEOS)/makefiles/common.mk
 

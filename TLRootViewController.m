@@ -149,10 +149,13 @@
     error.text = errorText;
     error.textColor = [UIColor systemRedColor];
     error.textAlignment = NSTextAlignmentCenter;
+    error.numberOfLines = 2;
     [self.view addSubview:error];
     [NSLayoutConstraint activateConstraints:@[
         [error.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [error.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor]
+        [error.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
+        [error.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+        [error.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20]
     ]];
 }
 
@@ -298,6 +301,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
+    [self configureTableView];
+
     NSString *currentError = _deviceManager.currentError;
     if (currentError) {
         [self printError:currentError];
@@ -307,7 +312,6 @@
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
     int sliderCount = isLegacyLEDs ? 2 : 4;
 
-    [self configureTableView];
     [self configureLockSwitch];
     if (!isLegacyLEDs)
         [self configureLEDCount];
@@ -321,6 +325,9 @@
 
 - (void)viewWillLayoutSubviews {
     [super viewWillLayoutSubviews];
+
+    NSString *currentError = _deviceManager.currentError;
+    if (currentError) return;
 
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
 

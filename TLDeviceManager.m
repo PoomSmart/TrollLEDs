@@ -43,7 +43,7 @@
         else if ([vendor respondsToSelector:@selector(registerClientWithPID:stealingBehavior:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
             client = [vendor registerClientWithPID:pid stealingBehavior:1 deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
         else {
-            _currentError = @"Could not register client";
+            _currentError = @"Could not register client, try restarting the app?";
             return NO;
         }
         int error;
@@ -65,7 +65,7 @@
             [inv invoke];
             [inv getReturnValue:&streamRef];
         } else {
-            _currentError = @"Could not get device";
+            _currentError = @"Could not get device, try restarting the app?";
             return NO;
         }
     }
@@ -75,7 +75,7 @@
     } else
         stream = [vendor copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:device];
     if (!streamSetProperty && !stream) {
-        _currentError = @"Could not get stream";
+        _currentError = @"Could not get stream, try restarting the app?";
         return NO;
     }
     initialized = YES;
