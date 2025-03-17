@@ -73,8 +73,13 @@
         }
     }
     if (streamRef) {
-        const CMBaseVTable *vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
-        streamSetProperty = vtable->baseClass->setProperty;
+        if (@available(iOS 11.0, *)) {
+            const CMBaseVTable *vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
+            streamSetProperty = vtable->baseClass->setProperty;
+        } else {
+            const CMBaseVTable_iOS10 *vtable = (const CMBaseVTable_iOS10 *)CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
+            streamSetProperty = vtable->baseClass->setProperty;
+        }
     } else
         stream = [vendor copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:device];
     if (!streamSetProperty && !stream) {

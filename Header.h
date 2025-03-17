@@ -22,7 +22,7 @@ typedef struct CMBaseProtocolTable CMBaseProtocolTable;
 typedef OSStatus (*CMBaseObjectCopyPropertyFunction)(CMBaseObjectRef object, CFStringRef propertyKey, CFAllocatorRef allocator, void *propertyValueOut);
 typedef OSStatus (*CMBaseObjectSetPropertyFunction)(CMBaseObjectRef object, CFStringRef propertyKey, CFTypeRef propertyValue);
 
-typedef struct __attribute__((packed)) {
+typedef struct {
     CMBaseClassVersion version;
     size_t derivedStorageSize;
     Boolean (*equal)(CMBaseObjectRef o, CMBaseObjectRef compareTo);
@@ -35,10 +35,28 @@ typedef struct __attribute__((packed)) {
     const CMBaseProtocolTable *protocolTable;
 } CMBaseClass;
 
+typedef struct __attribute__((packed)) {
+    CMBaseClassVersion version;
+    size_t derivedStorageSize;
+    Boolean (*equal)(CMBaseObjectRef o, CMBaseObjectRef compareTo);
+    OSStatus (*invalidate)(CMBaseObjectRef o);
+    void (*finalize)(CMBaseObjectRef o);
+    CFStringRef (*copyDebugDescription)(CMBaseObjectRef o);
+    CMBaseObjectCopyPropertyFunction copyProperty;
+    CMBaseObjectSetPropertyFunction setProperty;
+    OSStatus (*notificationBarrier)(CMBaseObjectRef o);
+    const CMBaseProtocolTable *protocolTable;
+} CMBaseClass_iOS10;
+
 typedef struct {
     const struct OpaqueCMBaseVTableReserved *reserved;
     const CMBaseClass *baseClass;
 } CMBaseVTable;
+
+typedef struct {
+    const struct OpaqueCMBaseVTableReserved *reserved;
+    const CMBaseClass_iOS10 *baseClass;
+} CMBaseVTable_iOS10;
 
 const CMBaseVTable *CMBaseObjectGetVTable(CMBaseObjectRef o);
 
