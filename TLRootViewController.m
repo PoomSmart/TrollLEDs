@@ -365,7 +365,12 @@
 
     if (!isLegacyLEDs) {
         NSLayoutConstraint *ledCountCenterX = [_ledCount.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-        NSLayoutConstraint *ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20];
+        NSLayoutConstraint *ledCountBottom;
+        if (@available(iOS 11.0, *)) {
+            ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20];
+        } else {
+            ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-20];
+        }
 
         [_ledCountConstraints addObjectsFromArray:@[ledCountCenterX, ledCountBottom]];
         [NSLayoutConstraint activateConstraints:_ledCountConstraints];

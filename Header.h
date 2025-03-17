@@ -22,7 +22,7 @@ typedef struct CMBaseProtocolTable CMBaseProtocolTable;
 typedef OSStatus (*CMBaseObjectCopyPropertyFunction)(CMBaseObjectRef object, CFStringRef propertyKey, CFAllocatorRef allocator, void *propertyValueOut);
 typedef OSStatus (*CMBaseObjectSetPropertyFunction)(CMBaseObjectRef object, CFStringRef propertyKey, CFTypeRef propertyValue);
 
-typedef struct {
+typedef struct __attribute__((packed)) {
     CMBaseClassVersion version;
     size_t derivedStorageSize;
     Boolean (*equal)(CMBaseObjectRef o, CMBaseObjectRef compareTo);
@@ -55,6 +55,7 @@ const CMBaseVTable *CMBaseObjectGetVTable(CMBaseObjectRef o);
 + (instancetype)sharedCaptureDeviceVendor;
 + (OpaqueFigCaptureDeviceRef)copyDefaultVideoDeviceWithStealingBehavior:(int)stealingBehavior forPID:(pid_t)pid clientIDOut:(int *)clientIDOut withDeviceAvailabilityChangedHandler:(/*^block*/ id)deviceAvailabilityChangedHandler;
 + (OpaqueFigCaptureStreamRef)copyStreamForFlashlightWithPosition:(int)position deviceType:(int)deviceType forDevice:(OpaqueFigCaptureDeviceRef)device;
++ (OpaqueFigCaptureStreamRef)copyStreamWithPosition:(int)position deviceType:(int)deviceType forDevice:(OpaqueFigCaptureDeviceRef)device;
 - (OpaqueFigCaptureDeviceRef)copyDeviceForClient:(int)client;
 - (void)_registerNewDeviceClientForPID:(pid_t)clientPID clientIDOut:(int *)clientIDOut deviceAvailabilityChangedHandler:(/*^block*/ id)deviceAvailabilityChangedHandler;
 - (int)registerClientWithPID:(pid_t)clientPID stealingBehavior:(int)stealingBehavior deviceSharingWithOtherClientsAllowed:(BOOL)deviceSharingWithOtherClientsAllowed deviceAvailabilityChangedHandler:(/*^block*/ id)deviceAvailabilityChangedHandler;
@@ -68,6 +69,7 @@ const CMBaseVTable *CMBaseObjectGetVTable(CMBaseObjectRef o);
 - (void)takeBackDevice:(OpaqueFigCaptureDeviceRef)device forClient:(int)client;
 - (void)takeBackFlashlightDevice:(OpaqueFigCaptureDeviceRef)device forPID:(pid_t)pid;
 - (void)takeBackDevice:(BWFigCaptureDevice *)device forClient:(int)client informClientWhenDeviceAvailableAgain:(BOOL)informClientWhenDeviceAvailableAgain;
++ (void)takeBackVideoDevice:(OpaqueFigCaptureDeviceRef)device forPID:(pid_t)pid requestDeviceWhenAvailableAgain:(BOOL)requestDeviceWhenAvailableAgain informOtherClients:(BOOL)informOtherClients;
 @end
 
 #endif /* Header_h */

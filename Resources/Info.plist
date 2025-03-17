@@ -44,13 +44,13 @@
         <string>iPhoneOS</string>
     </array>
     <key>CFBundleShortVersionString</key>
-    <string>1.8.1</string>
+    <string>1.9.0</string>
     <key>CFBundleVersion</key>
-    <string>1.8.1</string>
+    <string>1.9.0</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>MinimumOSVersion</key>
-    <string>11.0</string>
+    <string>10.0</string>
     <key>UIDeviceFamily</key>
     <array>
         <integer>1</integer>

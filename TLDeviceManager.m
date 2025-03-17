@@ -11,7 +11,7 @@
     BWFigCaptureDeviceVendorClass = NSClassFromString(@"BWFigCaptureDeviceVendor");
     if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(sharedCaptureDeviceVendor)])
         vendor = [BWFigCaptureDeviceVendorClass sharedCaptureDeviceVendor];
-    else
+    else if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(sharedInstance)])
         vendor = [BWFigCaptureDeviceVendorClass sharedInstance];
     pid = getpid();
 }
@@ -34,7 +34,10 @@
     NSString *clientDescription = @"TrollLEDs application";
     if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(copyDefaultVideoDeviceWithStealingBehavior:forPID:clientIDOut:withDeviceAvailabilityChangedHandler:)]) {
         deviceRef = [BWFigCaptureDeviceVendorClass copyDefaultVideoDeviceWithStealingBehavior:1 forPID:pid clientIDOut:&client withDeviceAvailabilityChangedHandler:NULL];
-        streamRef = [BWFigCaptureDeviceVendorClass copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:deviceRef];
+        if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(copyStreamForFlashlightWithPosition:deviceType:forDevice:)])
+            streamRef = [BWFigCaptureDeviceVendorClass copyStreamForFlashlightWithPosition:1 deviceType:2 forDevice:deviceRef];
+        else
+            streamRef = [BWFigCaptureDeviceVendorClass copyStreamWithPosition:1 deviceType:2 forDevice:deviceRef];
     } else {
         if ([vendor respondsToSelector:@selector(registerClientWithPID:clientDescription:clientPriority:canStealFromClientsWithSamePriority:deviceSharingWithOtherClientsAllowed:deviceAvailabilityChangedHandler:)])
             client = [vendor registerClientWithPID:pid clientDescription:clientDescription clientPriority:1 canStealFromClientsWithSamePriority:NO deviceSharingWithOtherClientsAllowed:YES deviceAvailabilityChangedHandler:NULL];
@@ -89,6 +92,8 @@
         [vendor takeBackFlashlightDevice:deviceRef forPID:pid];
     else if ([vendor respondsToSelector:@selector(takeBackDevice:forClient:)])
         [vendor takeBackDevice:deviceRef forClient:client];
+    else if ([BWFigCaptureDeviceVendorClass respondsToSelector:@selector(takeBackVideoDevice:forPID:requestDeviceWhenAvailableAgain:informOtherClients:)])
+        [BWFigCaptureDeviceVendorClass takeBackVideoDevice:deviceRef forPID:pid requestDeviceWhenAvailableAgain:NO informOtherClients:YES];
     if (deviceRef)
         CFRelease(deviceRef);
     if (streamRef)
