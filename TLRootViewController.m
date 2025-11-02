@@ -24,7 +24,6 @@
     CGSize lastViewSize;     // Performance: Track view size changes for layout optimization
 }
 
-@property(nonatomic, strong) TLDeviceManager *deviceManager;
 @property(nonatomic, strong) NSMutableArray<UISlider *> *sliders;
 @property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *sliderConstraints;
 @property(nonatomic, strong) NSMutableArray<UILabel *> *sliderLabels;

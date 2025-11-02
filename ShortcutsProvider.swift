@@ -43,5 +43,14 @@ struct TrollLEDsAppShortcutsProvider: AppShortcutsProvider {
             shortTitle: "Manual",
             systemImageName: "flashlight.on.circle.fill"
         )
+        AppShortcut(
+            intent: GetLEDLevelsIntent(),
+            phrases: [
+                "Get LED levels with \(.applicationName)",
+                "Check LED brightness with \(.applicationName)"
+            ],
+            shortTitle: "Get LED Levels",
+            systemImageName: "info.circle.fill"
+        )
     }
 }

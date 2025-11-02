@@ -333,6 +333,56 @@
 }
 
 /**
+ * Returns whether the device stream is currently initialized.
+ * When initialized, the app has exclusive control over the LEDs.
+ *
+ * @return YES if stream is initialized, NO otherwise
+ */
+- (BOOL)isInitialized {
+    return initialized;
+}
+
+/**
+ * Gets a property value from the camera device.
+ * Can only retrieve properties when the device stream is active (initialized).
+ *
+ * @param property Core Foundation string key for the property to get
+ * @return The property value, or nil if not available or an error occurred
+ *
+ * Note: This only works when the device is locked (stream is initialized).
+ * If the device is not locked, returns nil.
+ */
+- (id)getProperty:(CFStringRef)property {
+    if (!property) {
+        NSLog(@"TrollLEDs: Attempted to get property with nil property key");
+        return nil;
+    }
+
+    if (!initialized) {
+        NSLog(@"TrollLEDs: Cannot get property - stream not initialized");
+        return nil;
+    }
+
+    @try {
+        if (device) {
+            int error = 0;
+            id value = [device getProperty:property error:&error];
+            if (error != 0) {
+                NSLog(@"TrollLEDs: Error getting property (error code: %d)", error);
+                return nil;
+            }
+            return value;
+        } else {
+            NSLog(@"TrollLEDs: Device object not available for property reading");
+            return nil;
+        }
+    } @catch (NSException *exception) {
+        NSLog(@"TrollLEDs: Exception while getting property: %@", exception.reason);
+        return nil;
+    }
+}
+
+/**
  * Sets a property on the camera device stream.
  * Used to control LED levels and behavior.
  *

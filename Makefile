@@ -17,7 +17,7 @@ else
 	IPA_NAME = $(APPLICATION_NAME)
 endif
 
-$(APPLICATION_NAME)_FILES = main.m TLDeviceManager.m TLSceneDelegate.m TLAppDelegate.m TLRootViewController.m Intents.swift ShortcutsProvider.swift
+$(APPLICATION_NAME)_FILES = main.m TLDeviceManager.m TLSceneDelegate.m TLAppDelegate.m TLRootViewController.m TLLEDReader.m Intents.swift ShortcutsProvider.swift
 $(APPLICATION_NAME)_FRAMEWORKS = UIKit CoreGraphics CoreMedia
 $(APPLICATION_NAME)_CFLAGS = -fobjc-arc
 ifeq ($(UNSANDBOX),1)

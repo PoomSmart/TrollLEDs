@@ -1,5 +1,6 @@
 import AppIntents
 import UIKit
+import CoreTransferable
 
 @available(iOS 16.0, *)
 struct AmberOnIntent: AppIntent {
@@ -97,7 +98,7 @@ struct ManualIntent: AppIntent {
 
     @Parameter(title: "Warm LED 1", inclusiveRange: (0, 255))
     var warmLED1: Int
-    
+
     static var parameterSummary: some ParameterSummary {
         Summary("Configure LEDs levels to (\(\.$coolLED0), \(\.$coolLED1), \(\.$warmLED0), \(\.$warmLED1))")
     }
@@ -109,5 +110,46 @@ struct ManualIntent: AppIntent {
             }
         }
         return .result()
+    }
+}
+
+@available(iOS 16.0, *)
+struct GetLEDLevelsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Get LED Levels"
+    static let description = IntentDescription(
+        "Get current LED brightness levels from hardware or saved state",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        // Read current values using the LED reader
+        guard let levels = TLLEDReader.getCurrentLEDLevels() else {
+            return .result(dialog: IntentDialog("Unable to read LED levels"))
+        }
+
+        let coolLED0 = levels["coolLED0"] as? Int ?? 0
+        let coolLED1 = levels["coolLED1"] as? Int ?? 0
+        let warmLED0 = levels["warmLED0"] as? Int ?? 0
+        let warmLED1 = levels["warmLED1"] as? Int ?? 0
+        let torchLevel = levels["torchLevel"] as? Double ?? 0.0
+        let warmth = levels["warmth"] as? Int ?? 0
+        let isLocked = levels["isLocked"] as? Bool ?? false
+        let source = levels["source"] as? String ?? "unknown"
+
+        let sourceText = source == "hardware" ? "from hardware" : "from saved state"
+
+        let message = """
+        LED Levels (\(sourceText)):
+        Cool LED 0: \(coolLED0)
+        Cool LED 1: \(coolLED1)
+        Warm LED 0: \(warmLED0)
+        Warm LED 1: \(warmLED1)
+        Torch Level: \(Int(torchLevel * 100))%
+        Warmth: \(warmth)%
+        Lock State: \(isLocked ? "Locked" : "Unlocked")
+        """
+
+        return .result(dialog: IntentDialog(stringLiteral: message))
     }
 }

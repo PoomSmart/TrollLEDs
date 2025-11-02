@@ -1,9 +1,8 @@
 #import <UIKit/UIKit.h>
 #import "TLDeviceManager.h"
 
-@interface TLRootViewController : UITableViewController {
-    TLDeviceManager *deviceManager;
-}
+@interface TLRootViewController : UITableViewController
+@property (nonatomic, strong, readonly) TLDeviceManager *deviceManager;
 @property (nonatomic, retain) NSString *shortcutAction;
 - (void)handleShortcutAction:(NSString *)action withParameters:(NSArray <NSURLQueryItem *> *)params;
 - (void)setupStream;
