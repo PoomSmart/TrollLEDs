@@ -1,4 +1,4 @@
-#include <Foundation/Foundation.h>
+#import <Foundation/Foundation.h>
 #import <objc/objc.h>
 #import <theos/IOSMacros.h>
 #import <UIKit/UIColor+Private.h>
@@ -13,21 +13,22 @@
     int WarmLED0Level;
     int WarmLED1Level;
 }
-@property (nonatomic, strong) TLDeviceManager *deviceManager;
-@property (nonatomic, strong) NSMutableArray <UISlider *> *sliders;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *sliderConstraints;
-@property (nonatomic, strong) NSMutableArray <UILabel *> *sliderLabels;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *sliderLabelConstraints;
-@property (nonatomic, strong) NSMutableArray <UILabel *> *sliderValueLabels;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *sliderValueLabelConstraints;
-@property (nonatomic, strong) UISwitch *lockSwitch;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *lockSwitchConstraints;
-@property (nonatomic, strong) UILabel *lockSwitchLabel;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *lockSwitchLabelConstraints;
-@property (nonatomic, strong) UISegmentedControl *ledCount;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *ledCountConstraints;
-@property (nonatomic, strong) UILabel *ledCountLabel;
-@property (nonatomic, strong) NSMutableArray <NSLayoutConstraint *> *ledCountLabelConstraints;
+
+@property(nonatomic, strong) TLDeviceManager *deviceManager;
+@property(nonatomic, strong) NSMutableArray<UISlider *> *sliders;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *sliderConstraints;
+@property(nonatomic, strong) NSMutableArray<UILabel *> *sliderLabels;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *sliderLabelConstraints;
+@property(nonatomic, strong) NSMutableArray<UILabel *> *sliderValueLabels;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *sliderValueLabelConstraints;
+@property(nonatomic, strong) UISwitch *lockSwitch;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *lockSwitchConstraints;
+@property(nonatomic, strong) UILabel *lockSwitchLabel;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *lockSwitchLabelConstraints;
+@property(nonatomic, strong) UISegmentedControl *ledCount;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *ledCountConstraints;
+@property(nonatomic, strong) UILabel *ledCountLabel;
+@property(nonatomic, strong) NSMutableArray<NSLayoutConstraint *> *ledCountLabelConstraints;
 @end
 
 @implementation TLRootViewController
@@ -58,23 +59,60 @@
 - (void)initDeviceManager {
     _deviceManager = [[TLDeviceManager alloc] init];
     [_deviceManager initVendor];
-    [_deviceManager setupStream];
+
+    // Check if vendor initialization failed
+    if (_deviceManager.currentError) {
+        return; // Error will be displayed in viewDidLoad
+    }
+
     [_deviceManager checkType];
+
+    // Check if device type detection failed
+    if (_deviceManager.currentError) {
+        return; // Error will be displayed in viewDidLoad
+    }
+
+    // Try to setup stream initially
+    BOOL success = [_deviceManager setupStream];
+    if (!success) {
+        // Error is already set in currentError
+        NSLog(@"TrollLEDs: Initial stream setup failed: %@", _deviceManager.currentError);
+    }
 }
 
 - (void)setupStream {
-    [_deviceManager setupStream];
+    BOOL success = [_deviceManager setupStream];
+    if (!success && _deviceManager.currentError) {
+        // If setup fails, display error to user
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"LED Control Error"
+                                                                       message:_deviceManager.currentError
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+
+        // Also post accessibility notification
+        UIAccessibilityPostNotification(
+            UIAccessibilityAnnouncementNotification,
+            [NSString stringWithFormat:@"LED Control Error: %@", _deviceManager.currentError]);
+    }
 }
 
 - (void)releaseStream {
-    [_deviceManager releaseStream];
+    @try {
+        [_deviceManager releaseStream];
+    } @catch (NSException *exception) {
+        NSLog(@"TrollLEDs: Exception while releasing stream: %@", exception.reason);
+        // Post accessibility notification about the error
+        UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification,
+                                        @"Warning: Error while releasing LED control");
+    }
 }
 
 - (BOOL)isQuadLEDs {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"TLQuadLEDs"];
 }
 
-- (void)handleShortcutAction:(NSString *)shortcutType withParameters:(NSArray <NSURLQueryItem *> *)parameters {
+- (void)handleShortcutAction:(NSString *)shortcutType withParameters:(NSArray<NSURLQueryItem *> *)parameters {
     BOOL legacy = [_deviceManager isLegacyLEDs];
     BOOL quad = [self isQuadLEDs];
     if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AmberOn"]) {
@@ -86,7 +124,7 @@
             CoolLED1Level = 0;
             WarmLED0Level = 255;
             WarmLED1Level = quad ? 255 : 0;
-        } 
+        }
     } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.WhiteOn"]) {
         if (legacy) {
             LEDLevel = 100;
@@ -150,6 +188,14 @@
     error.textColor = [UIColor systemRedColor];
     error.textAlignment = NSTextAlignmentCenter;
     error.numberOfLines = 2;
+
+    // Accessibility support for error messages
+    error.isAccessibilityElement = YES;
+    error.accessibilityLabel = @"Error";
+    error.accessibilityValue = errorText;
+    error.accessibilityTraits = UIAccessibilityTraitStaticText;
+    error.accessibilityIdentifier = @"errorLabel";
+
     [self.view addSubview:error];
     [NSLayoutConstraint activateConstraints:@[
         [error.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
@@ -157,6 +203,10 @@
         [error.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [error.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20]
     ]];
+
+    // Post accessibility announcement for immediate feedback
+    UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification,
+                                    [NSString stringWithFormat:@"Error: %@", errorText]);
 }
 
 - (NSString *)labelText:(int)index {
@@ -188,7 +238,8 @@
 }
 
 - (NSString *)switchLabel {
-    return locked ? @"On: Only TrollLEDs can control the LEDs" : @"Off: Release the LEDs to other apps (this may take few seconds)";
+    return locked ? @"On: Only TrollLEDs can control the LEDs"
+                  : @"Off: Release the LEDs to other apps (this may take few seconds)";
 }
 
 - (void)configureTableView {
@@ -207,6 +258,13 @@
     _lockSwitch.on = locked = YES;
     [_lockSwitch addTarget:self action:@selector(lockStateChanged:) forControlEvents:UIControlEventValueChanged];
 
+    // Accessibility support
+    _lockSwitch.isAccessibilityElement = YES;
+    _lockSwitch.accessibilityLabel = @"LED Control Lock";
+    _lockSwitch.accessibilityHint =
+        @"When on, only TrollLEDs can control the LEDs. When off, other apps can use the flashlight.";
+    _lockSwitch.accessibilityIdentifier = @"ledControlLockSwitch";
+
     [self.view addSubview:_lockSwitch];
 
     _lockSwitchLabel = [[UILabel alloc] init];
@@ -217,6 +275,9 @@
     _lockSwitchLabel.numberOfLines = 2;
     _lockSwitchLabel.font = [UIFont systemFontOfSize:14];
 
+    // Accessibility support
+    _lockSwitchLabel.isAccessibilityElement = NO; // Label is descriptive, switch is interactive
+
     [self.view addSubview:_lockSwitchLabel];
 }
 
@@ -224,10 +285,17 @@
     _ledCountConstraints = [[NSMutableArray alloc] init];
     _ledCountLabelConstraints = [[NSMutableArray alloc] init];
 
-    _ledCount = [[UISegmentedControl alloc] initWithItems:@[@"Dual", @"Quad"]];
+    _ledCount = [[UISegmentedControl alloc] initWithItems:@[ @"Dual", @"Quad" ]];
     _ledCount.translatesAutoresizingMaskIntoConstraints = NO;
     _ledCount.selectedSegmentIndex = [self isQuadLEDs] ? 1 : 0;
     [_ledCount addTarget:self action:@selector(ledCountChanged:) forControlEvents:UIControlEventValueChanged];
+
+    // Accessibility support
+    _ledCount.isAccessibilityElement = YES;
+    _ledCount.accessibilityLabel = @"Physical LED Count";
+    _ledCount.accessibilityHint =
+        @"Select Dual for devices with two physical LEDs or Quad for devices with four physical LEDs";
+    _ledCount.accessibilityIdentifier = @"ledCountSegmentedControl";
 
     [self.view addSubview:_ledCount];
 
@@ -237,6 +305,9 @@
     _ledCountLabel.textColor = [UIColor systemGrayColor];
     _ledCountLabel.textAlignment = NSTextAlignmentCenter;
     _ledCountLabel.font = [UIFont systemFontOfSize:14];
+
+    // Accessibility support
+    _ledCountLabel.isAccessibilityElement = NO; // Label is descriptive, control is interactive
 
     [self.view addSubview:_ledCountLabel];
 }
@@ -262,6 +333,12 @@
         slider.tag = i;
         [slider addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
 
+        // Accessibility support
+        slider.isAccessibilityElement = YES;
+        slider.accessibilityLabel = [self labelText:i];
+        slider.accessibilityHint = @"Adjust LED brightness level. Double tap and hold to adjust the value.";
+        slider.accessibilityIdentifier = [NSString stringWithFormat:@"ledSlider%ld", (long)i];
+
         [self.view addSubview:slider];
         [_sliders addObject:slider];
 
@@ -273,7 +350,15 @@
         label.font = [UIFont systemFontOfSize:14];
         label.tag = i;
 
-        UITapGestureRecognizer *labelTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sliderValueTapped:)];
+        // Accessibility support
+        label.isAccessibilityElement = YES;
+        label.accessibilityLabel = [NSString stringWithFormat:@"%@ label", [self labelText:i]];
+        label.accessibilityHint = @"Tap to toggle this LED on or off";
+        label.accessibilityTraits = UIAccessibilityTraitButton;
+        label.accessibilityIdentifier = [NSString stringWithFormat:@"ledLabel%ld", (long)i];
+
+        UITapGestureRecognizer *labelTap =
+            [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sliderValueTapped:)];
         labelTap.numberOfTapsRequired = 1;
         label.userInteractionEnabled = YES;
         [label addGestureRecognizer:labelTap];
@@ -288,7 +373,15 @@
         valueLabel.textAlignment = NSTextAlignmentCenter;
         valueLabel.tag = i;
 
-        UITapGestureRecognizer *valueLabelTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sliderValueTapped:)];
+        // Accessibility support
+        valueLabel.isAccessibilityElement = YES;
+        valueLabel.accessibilityLabel = [NSString stringWithFormat:@"%@ value", [self labelText:i]];
+        valueLabel.accessibilityHint = @"Current LED brightness value. Tap to toggle this LED on or off";
+        valueLabel.accessibilityTraits = UIAccessibilityTraitButton | UIAccessibilityTraitUpdatesFrequently;
+        valueLabel.accessibilityIdentifier = [NSString stringWithFormat:@"ledValue%ld", (long)i];
+
+        UITapGestureRecognizer *valueLabelTap =
+            [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(sliderValueTapped:)];
         valueLabelTap.numberOfTapsRequired = 1;
         valueLabel.userInteractionEnabled = YES;
         [valueLabel addGestureRecognizer:valueLabelTap];
@@ -308,7 +401,7 @@
         [self printError:currentError];
         return;
     }
-    
+
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
     int sliderCount = isLegacyLEDs ? 2 : 4;
 
@@ -327,7 +420,8 @@
     [super viewWillLayoutSubviews];
 
     NSString *currentError = _deviceManager.currentError;
-    if (currentError) return;
+    if (currentError)
+        return;
 
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
 
@@ -353,32 +447,39 @@
     NSLayoutConstraint *lockSwitchCenterX = [_lockSwitch.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
     NSLayoutConstraint *lockSwitchTop = [_lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20];
 
-    [_lockSwitchConstraints addObjectsFromArray:@[lockSwitchCenterX, lockSwitchTop]];
+    [_lockSwitchConstraints addObjectsFromArray:@[ lockSwitchCenterX, lockSwitchTop ]];
     [NSLayoutConstraint activateConstraints:_lockSwitchConstraints];
 
-    NSLayoutConstraint *lockSwitchLabelCenterX = [_lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-    NSLayoutConstraint *lockSwitchLabelTop = [_lockSwitchLabel.topAnchor constraintEqualToAnchor:_lockSwitch.bottomAnchor constant:10];
-    NSLayoutConstraint *lockSwitchLabelWidth = [_lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
+    NSLayoutConstraint *lockSwitchLabelCenterX =
+        [_lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *lockSwitchLabelTop =
+        [_lockSwitchLabel.topAnchor constraintEqualToAnchor:_lockSwitch.bottomAnchor constant:10];
+    NSLayoutConstraint *lockSwitchLabelWidth =
+        [_lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
 
-    [_lockSwitchLabelConstraints addObjectsFromArray:@[lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth]];
+    [_lockSwitchLabelConstraints
+        addObjectsFromArray:@[ lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth ]];
     [NSLayoutConstraint activateConstraints:_lockSwitchLabelConstraints];
 
     if (!isLegacyLEDs) {
         NSLayoutConstraint *ledCountCenterX = [_ledCount.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
         NSLayoutConstraint *ledCountBottom;
         if (@available(iOS 11.0, *)) {
-            ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20];
+            ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor
+                                                                    constant:-20];
         } else {
             ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-20];
         }
 
-        [_ledCountConstraints addObjectsFromArray:@[ledCountCenterX, ledCountBottom]];
+        [_ledCountConstraints addObjectsFromArray:@[ ledCountCenterX, ledCountBottom ]];
         [NSLayoutConstraint activateConstraints:_ledCountConstraints];
 
-        NSLayoutConstraint *ledCountLabelCenterX = [_ledCountLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-        NSLayoutConstraint *ledCountLabelBottom = [_ledCountLabel.bottomAnchor constraintEqualToAnchor:_ledCount.topAnchor constant:-10];
+        NSLayoutConstraint *ledCountLabelCenterX =
+            [_ledCountLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+        NSLayoutConstraint *ledCountLabelBottom =
+            [_ledCountLabel.bottomAnchor constraintEqualToAnchor:_ledCount.topAnchor constant:-10];
 
-        [_ledCountLabelConstraints addObjectsFromArray:@[ledCountLabelCenterX, ledCountLabelBottom]];
+        [_ledCountLabelConstraints addObjectsFromArray:@[ ledCountLabelCenterX, ledCountLabelBottom ]];
         [NSLayoutConstraint activateConstraints:_ledCountLabelConstraints];
     }
 
@@ -390,26 +491,30 @@
     for (NSInteger i = 0; i < _sliders.count; i++) {
         UISlider *slider = _sliders[i];
 
-        NSLayoutConstraint *centerX = [slider.centerXAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:(i + 1) * spacing + i * sliderWidth + sliderWidth / 2];
+        NSLayoutConstraint *centerX =
+            [slider.centerXAnchor constraintEqualToAnchor:self.view.leadingAnchor
+                                                 constant:(i + 1) * spacing + i * sliderWidth + sliderWidth / 2];
         NSLayoutConstraint *centerY = [slider.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor];
         NSLayoutConstraint *width = [slider.widthAnchor constraintEqualToConstant:sliderHeight];
         NSLayoutConstraint *height = [slider.heightAnchor constraintEqualToConstant:sliderWidth];
 
-        [_sliderConstraints addObjectsFromArray:@[centerX, centerY, width, height]];
+        [_sliderConstraints addObjectsFromArray:@[ centerX, centerY, width, height ]];
 
         UILabel *label = _sliderLabels[i];
 
         NSLayoutConstraint *labelCenterX = [label.centerXAnchor constraintEqualToAnchor:slider.centerXAnchor];
-        NSLayoutConstraint *labelTop = [label.topAnchor constraintEqualToAnchor:slider.bottomAnchor constant:sliderHeight / 2 + 10];
+        NSLayoutConstraint *labelTop = [label.topAnchor constraintEqualToAnchor:slider.bottomAnchor
+                                                                       constant:sliderHeight / 2 + 10];
 
-        [_sliderLabelConstraints addObjectsFromArray:@[labelCenterX, labelTop]];
+        [_sliderLabelConstraints addObjectsFromArray:@[ labelCenterX, labelTop ]];
 
         UILabel *valueLabel = _sliderValueLabels[i];
 
         NSLayoutConstraint *valueLabelCenterX = [valueLabel.centerXAnchor constraintEqualToAnchor:slider.centerXAnchor];
-        NSLayoutConstraint *valueLabelTop = [valueLabel.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:10];
+        NSLayoutConstraint *valueLabelTop = [valueLabel.topAnchor constraintEqualToAnchor:label.bottomAnchor
+                                                                                 constant:10];
 
-        [_sliderValueLabelConstraints addObjectsFromArray:@[valueLabelCenterX, valueLabelTop]];
+        [_sliderValueLabelConstraints addObjectsFromArray:@[ valueLabelCenterX, valueLabelTop ]];
     }
 
     [NSLayoutConstraint activateConstraints:_sliderConstraints];
@@ -422,7 +527,8 @@
 }
 
 - (void)sliderValueTapped:(UITapGestureRecognizer *)sender {
-    if (!locked) return;
+    if (!locked)
+        return;
     UILabel *label = (UILabel *)sender.view;
     UISlider *slider = _sliders[label.tag];
     if (slider.value == 0)
@@ -435,6 +541,13 @@
 - (void)updateSliderValueLabel:(int)tag withValue:(int)value {
     UILabel *valueLabel = _sliderValueLabels[tag];
     valueLabel.text = [NSString stringWithFormat:@"%d", value];
+
+    // Update accessibility value for better VoiceOver experience
+    valueLabel.accessibilityValue = [NSString stringWithFormat:@"%d", value];
+
+    // Update slider accessibility value
+    UISlider *slider = _sliders[tag];
+    slider.accessibilityValue = [NSString stringWithFormat:@"%d percent", (int)((value / slider.maximumValue) * 100)];
 }
 
 - (void)sliderValueChanged:(UISlider *)sender {
@@ -478,10 +591,22 @@
         [_deviceManager releaseStream];
     }
     _lockSwitchLabel.text = [self switchLabel];
+
+    // Update accessibility for lock switch
+    _lockSwitch.accessibilityValue = locked ? @"On" : @"Off";
+
     for (UISlider *slider in _sliders) {
         slider.value = 0;
         [self sliderValueChanged:slider];
         slider.enabled = locked;
+
+        // Update accessibility traits based on enabled state
+        if (locked) {
+            slider.accessibilityTraits = UIAccessibilityTraitAdjustable;
+        } else {
+            slider.accessibilityTraits = UIAccessibilityTraitAdjustable | UIAccessibilityTraitNotEnabled;
+        }
+
         [slider setNeedsLayout];
     }
 }
@@ -489,17 +614,15 @@
 - (void)updateParameters {
     if ([_deviceManager isLegacyLEDs]) {
         NSNumber *torchLevelValue = @(LEDLevel);
-        NSDictionary *torchColorValue = @{
-            @"WarmLEDPercentile": @(WarmLEDPercentile)
-        };
+        NSDictionary *torchColorValue = @{@"WarmLEDPercentile" : @(WarmLEDPercentile)};
         [_deviceManager setProperty:CFSTR("TorchLevel") value:torchLevelValue];
         [_deviceManager setProperty:CFSTR("TorchColor") value:torchColorValue];
     } else {
         NSDictionary *params = @{
-            @"CoolLED0Level": @(CoolLED0Level),
-            @"CoolLED1Level": @(CoolLED1Level),
-            @"WarmLED0Level": @(WarmLED0Level),
-            @"WarmLED1Level": @(WarmLED1Level)
+            @"CoolLED0Level" : @(CoolLED0Level),
+            @"CoolLED1Level" : @(CoolLED1Level),
+            @"WarmLED0Level" : @(WarmLED0Level),
+            @"WarmLED1Level" : @(WarmLED1Level)
         };
         [_deviceManager setProperty:CFSTR("TorchManualParameters") value:params];
     }
