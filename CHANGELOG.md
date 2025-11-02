@@ -10,9 +10,7 @@ All notable changes to TrollLEDs will be documented in this file.
 • Added state persistence - the app now remembers LED levels and lock state across app launches
 • Improved memory management with proper resource cleanup and deallocation
 • Optimized UI layout performance by caching constraints and reducing unnecessary layout passes
-• Refactored codebase with centralized constants in `TLConstants.h` for better maintainability
 • Improved code documentation with detailed method descriptions
-• Unified version management - version is now defined only in Makefile and automatically synced to Info.plist
 
 ## 1.9.0
 
