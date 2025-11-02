@@ -1,10 +1,21 @@
 #import "TLDeviceManager.h"
 #import <dlfcn.h>
 
+/**
+ * TLDeviceManager
+ *
+ * Manages the camera device and LED control for TrollLEDs.
+ * Handles initialization, stream setup, and property setting for flashlight LEDs.
+ */
+
 @implementation TLDeviceManager
 
 @synthesize currentError = _currentError;
 
+/**
+ * Ensures resources are cleaned up when the object is deallocated.
+ * Automatically releases the camera device stream if still initialized.
+ */
 - (void)dealloc {
     // Ensure resources are cleaned up when the object is deallocated
     if (initialized) {
@@ -12,10 +23,15 @@
     }
 }
 
+/**
+ * Initializes the camera device vendor.
+ * Loads the required framework (CMCapture or Celestial) and obtains the vendor instance.
+ * Sets currentError if initialization fails.
+ */
 - (void)initVendor {
-    void* cmCaptureHandle = dlopen("/System/Library/PrivateFrameworks/CMCapture.framework/CMCapture", RTLD_NOW);
+    void *cmCaptureHandle = dlopen("/System/Library/PrivateFrameworks/CMCapture.framework/CMCapture", RTLD_NOW);
     if (!cmCaptureHandle) {
-        void* celestialHandle = dlopen("/System/Library/PrivateFrameworks/Celestial.framework/Celestial", RTLD_NOW);
+        void *celestialHandle = dlopen("/System/Library/PrivateFrameworks/Celestial.framework/Celestial", RTLD_NOW);
         if (!celestialHandle) {
             _currentError = @"Failed to load camera framework. Your device may not be supported.";
             return;
@@ -41,16 +57,21 @@
     pid = getpid();
 }
 
+/**
+ * Checks the device type to determine if it uses legacy LEDs or modern quad-LEDs.
+ * Legacy devices use AppleH6CamIn or AppleH9CamIn IOKit services.
+ * Sets currentError if IOKit framework cannot be loaded.
+ */
 - (void)checkType {
-    void* IOKit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW);
+    void *IOKit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW);
     if (!IOKit) {
         _currentError = @"Failed to load IOKit framework.";
         return;
     }
 
-    mach_port_t* kIOMasterPortDefault = (mach_port_t*)dlsym(IOKit, "kIOMasterPortDefault");
-    CFMutableDictionaryRef (*IOServiceMatching)(const char* name) =
-        (CFMutableDictionaryRef(*)(const char*))dlsym(IOKit, "IOServiceMatching");
+    mach_port_t *kIOMasterPortDefault = (mach_port_t *)dlsym(IOKit, "kIOMasterPortDefault");
+    CFMutableDictionaryRef (*IOServiceMatching)(const char *name) =
+        (CFMutableDictionaryRef(*)(const char *))dlsym(IOKit, "IOServiceMatching");
     mach_port_t (*IOServiceGetMatchingService)(mach_port_t masterPort, CFDictionaryRef matching) =
         (mach_port_t(*)(mach_port_t, CFDictionaryRef))dlsym(IOKit, "IOServiceGetMatchingService");
     kern_return_t (*IOObjectRelease)(mach_port_t object) =
@@ -67,9 +88,19 @@
     if (h9)
         IOObjectRelease(h9);
     if (h6)
-        IOObjectRelease(h6);
+        if (h6)
+            IOObjectRelease(h6);
 }
 
+/**
+ * Sets up the camera device stream for LED control.
+ * This is the main initialization method that establishes connection to the camera device.
+ *
+ * @return YES if setup was successful, NO if it failed (with currentError set)
+ *
+ * The method handles multiple iOS versions and API variations, trying different
+ * selectors based on what's available. Properly cleans up resources on failure.
+ */
 - (BOOL)setupStream {
     if (initialized)
         return YES;
@@ -82,7 +113,7 @@
         return NO;
     }
 
-    NSString* clientDescription = @"TrollLEDs application";
+    NSString *clientDescription = @"TrollLEDs application";
     if ([BWFigCaptureDeviceVendorClass
             respondsToSelector:@selector
             (copyDefaultVideoDeviceWithStealingBehavior:forPID:clientIDOut:withDeviceAvailabilityChangedHandler:)]) {
@@ -162,7 +193,7 @@
             }
 
             SEL selector = @selector(copyStreamForFlashlightWithPosition:deviceType:forDevice:);
-            NSInvocation* inv =
+            NSInvocation *inv =
                 [NSInvocation invocationWithMethodSignature:[vendor methodSignatureForSelector:selector]];
             inv.selector = selector;
             inv.target = vendor;
@@ -202,13 +233,13 @@
     if (streamRef) {
         @try {
             if (@available(iOS 11.0, *)) {
-                const CMBaseVTable* vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
+                const CMBaseVTable *vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
                 if (vtable && vtable->baseClass) {
                     streamSetProperty = vtable->baseClass->setProperty;
                 }
             } else {
-                const CMBaseVTable_iOS10* vtable =
-                    (const CMBaseVTable_iOS10*)CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
+                const CMBaseVTable_iOS10 *vtable =
+                    (const CMBaseVTable_iOS10 *)CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
                 if (vtable && vtable->baseClass) {
                     streamSetProperty = vtable->baseClass->setProperty;
                 }
@@ -219,7 +250,7 @@
                 [self releaseStream];
                 return NO;
             }
-        } @catch (NSException* exception) {
+        } @catch (NSException *exception) {
             _currentError = [NSString stringWithFormat:@"Exception while setting up stream: %@", exception.reason];
             [self releaseStream];
             return NO;
@@ -243,6 +274,14 @@
     return YES;
 }
 
+/**
+ * Releases the camera device stream and cleans up all resources.
+ * Should be called when the app no longer needs to control the LEDs,
+ * allowing other apps (like Camera) to use the device.
+ *
+ * Uses exception handling to ensure cleanup continues even if errors occur.
+ * Safely releases Core Foundation objects with NULL checks.
+ */
 - (void)releaseStream {
     // Only attempt to take back the device if it was successfully initialized
     if (initialized) {
@@ -261,7 +300,7 @@
                                                             forPID:pid
                                    requestDeviceWhenAvailableAgain:NO
                                                 informOtherClients:YES];
-        } @catch (NSException* exception) {
+        } @catch (NSException *exception) {
             NSLog(@"TrollLEDs: Exception while releasing device: %@", exception.reason);
         }
     }
@@ -284,10 +323,25 @@
     initialized = NO;
 }
 
+/**
+ * Returns whether the device uses legacy LED control (dual-LEDs).
+ *
+ * @return YES if device uses legacy LED API, NO for modern quad-LED API
+ */
 - (BOOL)isLegacyLEDs {
     return legacyLEDs;
 }
 
+/**
+ * Sets a property on the camera device stream.
+ * Used to control LED levels and behavior.
+ *
+ * @param property Core Foundation string key for the property to set
+ * @param value The value to set for the property
+ *
+ * Handles both object-based and function pointer-based stream property setting.
+ * Includes error handling to prevent crashes from invalid parameters.
+ */
 - (void)setProperty:(CFStringRef)property value:(id)value {
     if (!property || !value) {
         NSLog(@"TrollLEDs: Attempted to set property with nil property or value");
@@ -302,7 +356,7 @@
         } else {
             NSLog(@"TrollLEDs: Cannot set property - stream not initialized");
         }
-    } @catch (NSException* exception) {
+    } @catch (NSException *exception) {
         NSLog(@"TrollLEDs: Exception while setting property: %@", exception.reason);
     }
 }

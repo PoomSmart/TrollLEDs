@@ -1,8 +1,16 @@
-#import <Foundation/Foundation.h>
+#include <Foundation/Foundation.h>
 #import <objc/objc.h>
 #import <theos/IOSMacros.h>
 #import <UIKit/UIColor+Private.h>
 #import "TLRootViewController.h"
+#import "TLConstants.h"
+
+/**
+ * TLRootViewController
+ *
+ * Main view controller for TrollLEDs application.
+ * Manages LED control sliders and settings for both legacy and modern devices.
+ */
 
 @interface TLRootViewController () {
     BOOL locked;
@@ -12,6 +20,8 @@
     int CoolLED1Level;
     int WarmLED0Level;
     int WarmLED1Level;
+    BOOL constraintsCreated; // Performance: Cache flag to avoid recreating constraints
+    CGSize lastViewSize;     // Performance: Track view size changes for layout optimization
 }
 
 @property(nonatomic, strong) TLDeviceManager *deviceManager;
@@ -109,42 +119,143 @@
 }
 
 - (BOOL)isQuadLEDs {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"TLQuadLEDs"];
+    return [[NSUserDefaults standardUserDefaults] boolForKey:kTLQuadLEDsKey];
 }
+
+#pragma mark - State Persistence
+
+/**
+ * Saves the current LED levels and lock state to UserDefaults.
+ * This allows the app to restore the previous state on next launch.
+ */
+- (void)saveState {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    // Save lock state
+    [defaults setBool:locked forKey:kTLLockStateKey];
+
+    // Save LED levels based on device type
+    if ([_deviceManager isLegacyLEDs]) {
+        [defaults setDouble:LEDLevel forKey:kTLTorchLevelKey];
+        [defaults setInteger:WarmLEDPercentile forKey:kTLWarmthPercentileKey];
+    } else {
+        [defaults setInteger:CoolLED0Level forKey:kTLCoolLED0LevelKey];
+        [defaults setInteger:CoolLED1Level forKey:kTLCoolLED1LevelKey];
+        [defaults setInteger:WarmLED0Level forKey:kTLWarmLED0LevelKey];
+        [defaults setInteger:WarmLED1Level forKey:kTLWarmLED1LevelKey];
+    }
+
+    [defaults synchronize];
+}
+
+/**
+ * Restores the previously saved LED levels and lock state from UserDefaults.
+ * Called during initialization to restore the last known state.
+ */
+- (void)restoreState {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    // Restore lock state (default to YES if not set)
+    if ([defaults objectForKey:kTLLockStateKey]) {
+        locked = [defaults boolForKey:kTLLockStateKey];
+    } else {
+        locked = YES; // Default state
+    }
+
+    // Restore LED levels based on device type
+    if ([_deviceManager isLegacyLEDs]) {
+        if ([defaults objectForKey:kTLTorchLevelKey]) {
+            LEDLevel = [defaults doubleForKey:kTLTorchLevelKey];
+        }
+        if ([defaults objectForKey:kTLWarmthPercentileKey]) {
+            WarmLEDPercentile = [defaults integerForKey:kTLWarmthPercentileKey];
+        }
+    } else {
+        if ([defaults objectForKey:kTLCoolLED0LevelKey]) {
+            CoolLED0Level = (int)[defaults integerForKey:kTLCoolLED0LevelKey];
+        }
+        if ([defaults objectForKey:kTLCoolLED1LevelKey]) {
+            CoolLED1Level = (int)[defaults integerForKey:kTLCoolLED1LevelKey];
+        }
+        if ([defaults objectForKey:kTLWarmLED0LevelKey]) {
+            WarmLED0Level = (int)[defaults integerForKey:kTLWarmLED0LevelKey];
+        }
+        if ([defaults objectForKey:kTLWarmLED1LevelKey]) {
+            WarmLED1Level = (int)[defaults integerForKey:kTLWarmLED1LevelKey];
+        }
+    }
+}
+
+/**
+ * Applies the restored state to the UI sliders.
+ * Should be called after UI elements are created.
+ */
+- (void)applyRestoredStateToUI {
+    if (!_sliders || _sliders.count == 0)
+        return;
+
+    if ([_deviceManager isLegacyLEDs]) {
+        if (_sliders.count > 0)
+            _sliders[0].value = LEDLevel;
+        if (_sliders.count > 1)
+            _sliders[1].value = WarmLEDPercentile;
+    } else {
+        if (_sliders.count > 0)
+            _sliders[0].value = CoolLED0Level;
+        if (_sliders.count > 1)
+            _sliders[1].value = CoolLED1Level;
+        if (_sliders.count > 2)
+            _sliders[2].value = WarmLED0Level;
+        if (_sliders.count > 3)
+            _sliders[3].value = WarmLED1Level;
+    }
+
+    // Update value labels
+    for (int i = 0; i < _sliders.count; i++) {
+        [self updateSliderValueLabel:i withValue:(int)_sliders[i].value];
+    }
+
+    // Apply to hardware if locked
+    if (locked) {
+        [self updateParameters];
+    }
+}
+
+#pragma mark - Shortcut Handling
 
 - (void)handleShortcutAction:(NSString *)shortcutType withParameters:(NSArray<NSURLQueryItem *> *)parameters {
     BOOL legacy = [_deviceManager isLegacyLEDs];
     BOOL quad = [self isQuadLEDs];
-    if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AmberOn"]) {
+    if ([shortcutType isEqualToString:kTLShortcutAmberOn]) {
         if (legacy) {
             LEDLevel = 100;
             WarmLEDPercentile = 100;
         } else {
             CoolLED0Level = 0;
             CoolLED1Level = 0;
-            WarmLED0Level = 255;
-            WarmLED1Level = quad ? 255 : 0;
+            WarmLED0Level = kTLQuadLEDMaxLevel;
+            WarmLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
         }
-    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.WhiteOn"]) {
+    } else if ([shortcutType isEqualToString:kTLShortcutWhiteOn]) {
         if (legacy) {
             LEDLevel = 100;
             WarmLEDPercentile = 0;
         } else {
-            CoolLED0Level = 255;
-            CoolLED1Level = quad ? 255 : 0;
+            CoolLED0Level = kTLQuadLEDMaxLevel;
+            CoolLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
             WarmLED0Level = 0;
             WarmLED1Level = 0;
         }
-    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AllOn"]) {
+    } else if ([shortcutType isEqualToString:kTLShortcutAllOn]) {
         if (legacy) {
             LEDLevel = 100;
         } else {
-            CoolLED0Level = 255;
-            CoolLED1Level = quad ? 255 : 0;
-            WarmLED0Level = 255;
-            WarmLED1Level = quad ? 255 : 0;
+            CoolLED0Level = kTLQuadLEDMaxLevel;
+            CoolLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
+            WarmLED0Level = kTLQuadLEDMaxLevel;
+            WarmLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
         }
-    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.AllOff"]) {
+    } else if ([shortcutType isEqualToString:kTLShortcutAllOff]) {
         if (legacy) {
             LEDLevel = 0;
         } else {
@@ -153,7 +264,7 @@
             WarmLED0Level = 0;
             WarmLED1Level = 0;
         }
-    } else if ([shortcutType isEqualToString:@"com.ps.TrollLEDs.Manual"]) {
+    } else if ([shortcutType isEqualToString:kTLShortcutManual]) {
         if (!legacy) {
             for (NSURLQueryItem *parameter in parameters) {
                 if ([parameter.name isEqualToString:@"coolLED0"])
@@ -403,12 +514,19 @@
     }
 
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
-    int sliderCount = isLegacyLEDs ? 2 : 4;
+    int sliderCount = isLegacyLEDs ? kTLLegacySliderCount : kTLQuadSliderCount;
+    int maxValue = isLegacyLEDs ? kTLLegacyLEDMaxLevel : kTLQuadLEDMaxLevel;
+
+    // Restore state before configuring UI
+    [self restoreState];
 
     [self configureLockSwitch];
     if (!isLegacyLEDs)
         [self configureLEDCount];
-    [self configureLEDSliders:sliderCount maximumValue:isLegacyLEDs ? 100 : 255];
+    [self configureLEDSliders:sliderCount maximumValue:maxValue];
+
+    // Apply restored state to UI elements
+    [self applyRestoredStateToUI];
 
     if (_shortcutAction) {
         [self handleShortcutAction:_shortcutAction withParameters:nil];
@@ -416,6 +534,10 @@
     }
 }
 
+/**
+ * Layout pass for view. Optimized to only recreate constraints when view size changes.
+ * This improves performance by avoiding unnecessary constraint calculations.
+ */
 - (void)viewWillLayoutSubviews {
     [super viewWillLayoutSubviews];
 
@@ -423,8 +545,32 @@
     if (currentError)
         return;
 
+    // Performance optimization: Only recreate constraints if view size changed
+    if (constraintsCreated && CGSizeEqualToSize(lastViewSize, self.view.bounds.size)) {
+        return;
+    }
+
+    lastViewSize = self.view.bounds.size;
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
 
+    // Deactivate and clear existing constraints
+    [self deactivateAllConstraints:isLegacyLEDs];
+
+    // Setup constraints for each UI element
+    [self setupLockSwitchConstraints];
+    if (!isLegacyLEDs) {
+        [self setupLEDCountConstraints];
+    }
+    [self setupSliderConstraints:isLegacyLEDs];
+
+    constraintsCreated = YES;
+}
+
+/**
+ * Deactivates and clears all layout constraints.
+ * Helper method to keep viewWillLayoutSubviews more readable.
+ */
+- (void)deactivateAllConstraints:(BOOL)isLegacyLEDs {
     [NSLayoutConstraint deactivateConstraints:_sliderConstraints];
     [NSLayoutConstraint deactivateConstraints:_sliderLabelConstraints];
     [NSLayoutConstraint deactivateConstraints:_sliderValueLabelConstraints];
@@ -443,9 +589,15 @@
         [_ledCountConstraints removeAllObjects];
         [_ledCountLabelConstraints removeAllObjects];
     }
+}
 
+/**
+ * Sets up constraints for the lock switch and its label.
+ */
+- (void)setupLockSwitchConstraints {
     NSLayoutConstraint *lockSwitchCenterX = [_lockSwitch.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-    NSLayoutConstraint *lockSwitchTop = [_lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:20];
+    NSLayoutConstraint *lockSwitchTop = [_lockSwitch.topAnchor constraintEqualToAnchor:self.view.topAnchor
+                                                                              constant:kTLEdgeInset];
 
     [_lockSwitchConstraints addObjectsFromArray:@[ lockSwitchCenterX, lockSwitchTop ]];
     [NSLayoutConstraint activateConstraints:_lockSwitchConstraints];
@@ -453,38 +605,48 @@
     NSLayoutConstraint *lockSwitchLabelCenterX =
         [_lockSwitchLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
     NSLayoutConstraint *lockSwitchLabelTop =
-        [_lockSwitchLabel.topAnchor constraintEqualToAnchor:_lockSwitch.bottomAnchor constant:10];
+        [_lockSwitchLabel.topAnchor constraintEqualToAnchor:_lockSwitch.bottomAnchor constant:kTLLayoutSpacing];
     NSLayoutConstraint *lockSwitchLabelWidth =
         [_lockSwitchLabel.widthAnchor constraintEqualToAnchor:self.view.widthAnchor multiplier:0.9];
 
     [_lockSwitchLabelConstraints
         addObjectsFromArray:@[ lockSwitchLabelCenterX, lockSwitchLabelTop, lockSwitchLabelWidth ]];
     [NSLayoutConstraint activateConstraints:_lockSwitchLabelConstraints];
+}
 
-    if (!isLegacyLEDs) {
-        NSLayoutConstraint *ledCountCenterX = [_ledCount.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-        NSLayoutConstraint *ledCountBottom;
-        if (@available(iOS 11.0, *)) {
-            ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor
-                                                                    constant:-20];
-        } else {
-            ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-20];
-        }
-
-        [_ledCountConstraints addObjectsFromArray:@[ ledCountCenterX, ledCountBottom ]];
-        [NSLayoutConstraint activateConstraints:_ledCountConstraints];
-
-        NSLayoutConstraint *ledCountLabelCenterX =
-            [_ledCountLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
-        NSLayoutConstraint *ledCountLabelBottom =
-            [_ledCountLabel.bottomAnchor constraintEqualToAnchor:_ledCount.topAnchor constant:-10];
-
-        [_ledCountLabelConstraints addObjectsFromArray:@[ ledCountLabelCenterX, ledCountLabelBottom ]];
-        [NSLayoutConstraint activateConstraints:_ledCountLabelConstraints];
+/**
+ * Sets up constraints for the LED count segmented control and its label.
+ */
+- (void)setupLEDCountConstraints {
+    NSLayoutConstraint *ledCountCenterX = [_ledCount.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *ledCountBottom;
+    if (@available(iOS 11.0, *)) {
+        ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor
+                                                                constant:-kTLEdgeInset];
+    } else {
+        ledCountBottom = [_ledCount.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-kTLEdgeInset];
     }
 
-    CGFloat sliderWidth = 30.0;
-    CGFloat sliderHeight = self.view.bounds.size.height * (IS_IPAD || isLegacyLEDs ? 0.4 : 0.3);
+    [_ledCountConstraints addObjectsFromArray:@[ ledCountCenterX, ledCountBottom ]];
+    [NSLayoutConstraint activateConstraints:_ledCountConstraints];
+
+    NSLayoutConstraint *ledCountLabelCenterX =
+        [_ledCountLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor];
+    NSLayoutConstraint *ledCountLabelBottom = [_ledCountLabel.bottomAnchor constraintEqualToAnchor:_ledCount.topAnchor
+                                                                                          constant:-kTLLayoutSpacing];
+
+    [_ledCountLabelConstraints addObjectsFromArray:@[ ledCountLabelCenterX, ledCountLabelBottom ]];
+    [NSLayoutConstraint activateConstraints:_ledCountLabelConstraints];
+}
+
+/**
+ * Sets up constraints for LED sliders and their labels.
+ * Calculates optimal spacing based on slider count and view width.
+ */
+- (void)setupSliderConstraints:(BOOL)isLegacyLEDs {
+    CGFloat sliderWidth = kTLSliderWidth;
+    CGFloat sliderHeightMultiplier = (IS_IPAD || isLegacyLEDs) ? kTLiPadLayoutMultiplier : kTLiPhoneLayoutMultiplier;
+    CGFloat sliderHeight = self.view.bounds.size.height * sliderHeightMultiplier;
     CGFloat totalSlidersWidth = _sliders.count * sliderWidth;
     CGFloat spacing = (self.view.bounds.size.width - totalSlidersWidth) / (_sliders.count + 1);
 
@@ -523,7 +685,8 @@
 }
 
 - (void)ledCountChanged:(UISegmentedControl *)sender {
-    [[NSUserDefaults standardUserDefaults] setBool:sender.selectedSegmentIndex == 1 forKey:@"TLQuadLEDs"];
+    [[NSUserDefaults standardUserDefaults] setBool:sender.selectedSegmentIndex == 1 forKey:kTLQuadLEDsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
 - (void)sliderValueTapped:(UITapGestureRecognizer *)sender {
@@ -580,6 +743,9 @@
 
     [self updateSliderValueLabel:sender.tag withValue:value];
     [self updateParameters];
+
+    // Save state whenever slider value changes
+    [self saveState];
 }
 
 - (void)lockStateChanged:(UISwitch *)sender {
@@ -587,7 +753,7 @@
     if (locked)
         [_deviceManager setupStream];
     else {
-        [_deviceManager setProperty:CFSTR("TorchLevel") value:@(0)];
+        [_deviceManager setProperty:kTLPropertyTorchLevel value:@(0)];
         [_deviceManager releaseStream];
     }
     _lockSwitchLabel.text = [self switchLabel];
@@ -609,14 +775,17 @@
 
         [slider setNeedsLayout];
     }
+
+    // Save state when lock state changes
+    [self saveState];
 }
 
 - (void)updateParameters {
     if ([_deviceManager isLegacyLEDs]) {
         NSNumber *torchLevelValue = @(LEDLevel);
         NSDictionary *torchColorValue = @{@"WarmLEDPercentile" : @(WarmLEDPercentile)};
-        [_deviceManager setProperty:CFSTR("TorchLevel") value:torchLevelValue];
-        [_deviceManager setProperty:CFSTR("TorchColor") value:torchColorValue];
+        [_deviceManager setProperty:kTLPropertyTorchLevel value:torchLevelValue];
+        [_deviceManager setProperty:kTLPropertyTorchColor value:torchColorValue];
     } else {
         NSDictionary *params = @{
             @"CoolLED0Level" : @(CoolLED0Level),
@@ -624,7 +793,7 @@
             @"WarmLED0Level" : @(WarmLED0Level),
             @"WarmLED1Level" : @(WarmLED1Level)
         };
-        [_deviceManager setProperty:CFSTR("TorchManualParameters") value:params];
+        [_deviceManager setProperty:kTLPropertyTorchManualParameters value:params];
     }
 }
 
