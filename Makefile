@@ -5,9 +5,14 @@ TARGET = iphone:clang:latest:10.0
 endif
 INSTALL_TARGET_PROCESSES = TrollLEDs
 ARCHS = arm64
-PACKAGE_VERSION = 1.9.0
+PACKAGE_VERSION = 1.10.0
 
 include $(THEOS)/makefiles/common.mk
+
+# Update Info.plist version from PACKAGE_VERSION
+before-all::
+	@plutil -replace CFBundleShortVersionString -string "$(PACKAGE_VERSION)" Resources/Info.plist
+	@plutil -replace CFBundleVersion -string "$(PACKAGE_VERSION)" Resources/Info.plist
 
 APPLICATION_NAME = TrollLEDs
 
