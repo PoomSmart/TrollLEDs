@@ -1,6 +1,5 @@
 #include <Foundation/Foundation.h>
 #import <objc/objc.h>
-#import <theos/IOSMacros.h>
 #import <UIKit/UIColor+Private.h>
 #import "TLRootViewController.h"
 #import "TLConstants.h"
@@ -20,8 +19,9 @@
     int CoolLED1Level;
     int WarmLED0Level;
     int WarmLED1Level;
-    BOOL constraintsCreated; // Performance: Cache flag to avoid recreating constraints
-    CGSize lastViewSize;     // Performance: Track view size changes for layout optimization
+    BOOL constraintsCreated;          // Performance: Cache flag to avoid recreating constraints
+    CGSize lastViewSize;              // Performance: Track view size changes for layout optimization
+    UIEdgeInsets lastSafeAreaInsets;  // Rebuild when the home indicator or status bar inset changes
 }
 
 @property(nonatomic, strong) NSMutableArray<UISlider *> *sliders;
@@ -422,6 +422,61 @@
     [self.view addSubview:_ledCountLabel];
 }
 
+/**
+ * Rounded track image stretched along the slider. Height is the on-screen thickness
+ * because the slider is rotated after the image is drawn.
+ */
+- (UIImage *)sliderTrackImageWithColor:(UIColor *)color {
+    CGFloat thickness = kTLSliderTrackThickness;
+    CGSize size = CGSizeMake(thickness + 2.0, thickness);
+    UIGraphicsBeginImageContextWithOptions(size, NO, 0);
+    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(0, 0, size.width, size.height)
+                                                     cornerRadius:thickness / 2.0];
+    [color setFill];
+    [path fill];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return [image resizableImageWithCapInsets:UIEdgeInsetsMake(0, thickness / 2.0, 0, thickness / 2.0)
+                                  resizingMode:UIImageResizingModeStretch];
+}
+
+/** Circular thumb larger than the track, with a soft shadow so it stays easy to see and grab. */
+- (UIImage *)sliderThumbImageWithColor:(UIColor *)color {
+    CGFloat diameter = kTLSliderThumbDiameter;
+    CGFloat padding = (kTLSliderWidth - diameter) / 2.0;
+    CGRect rect = CGRectMake(padding, padding, diameter, diameter);
+
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(kTLSliderWidth, kTLSliderWidth), NO, 0);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetShadowWithColor(context, CGSizeMake(0, 1.5), 3.0, [UIColor colorWithWhite:0 alpha:0.5].CGColor);
+
+    UIBezierPath *thumb = [UIBezierPath bezierPathWithOvalInRect:rect];
+    [color setFill];
+    [thumb fill];
+
+    CGContextSetShadowWithColor(context, CGSizeZero, 0, NULL);
+    [[UIColor colorWithWhite:0 alpha:0.22] setStroke];
+    thumb.lineWidth = 1.0;
+    [thumb stroke];
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+- (void)applyAppearanceToSlider:(UISlider *)slider color:(UIColor *)color {
+    UIImage *thumb = [self sliderThumbImageWithColor:color];
+    [slider setThumbImage:thumb forState:UIControlStateNormal];
+    [slider setThumbImage:thumb forState:UIControlStateHighlighted];
+
+    UIImage *filledTrack = [self sliderTrackImageWithColor:color];
+    UIImage *emptyTrack = [self sliderTrackImageWithColor:[color colorWithAlphaComponent:0.3]];
+    [slider setMinimumTrackImage:filledTrack forState:UIControlStateNormal];
+    [slider setMinimumTrackImage:filledTrack forState:UIControlStateHighlighted];
+    [slider setMaximumTrackImage:emptyTrack forState:UIControlStateNormal];
+    [slider setMaximumTrackImage:emptyTrack forState:UIControlStateHighlighted];
+}
+
 - (void)configureLEDSliders:(int)sliderCount maximumValue:(int)maximumValue {
     _sliders = [[NSMutableArray alloc] init];
     _sliderConstraints = [[NSMutableArray alloc] init];
@@ -438,7 +493,7 @@
         slider.minimumValue = 0;
         slider.maximumValue = maximumValue;
         slider.value = 0;
-        slider.minimumTrackTintColor = color;
+        [self applyAppearanceToSlider:slider color:color];
         slider.transform = CGAffineTransformMakeRotation(-M_PI_2);
         slider.tag = i;
         [slider addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
@@ -458,6 +513,8 @@
         label.textColor = color;
         label.textAlignment = NSTextAlignmentCenter;
         label.font = [UIFont systemFontOfSize:14];
+        label.adjustsFontSizeToFitWidth = YES;
+        label.minimumScaleFactor = 0.75;
         label.tag = i;
 
         // Accessibility support
@@ -481,6 +538,7 @@
         valueLabel.text = @"0";
         valueLabel.textColor = color;
         valueLabel.textAlignment = NSTextAlignmentCenter;
+        valueLabel.font = [UIFont monospacedDigitSystemFontOfSize:17 weight:UIFontWeightMedium];
         valueLabel.tag = i;
 
         // Accessibility support
@@ -534,8 +592,7 @@
 }
 
 /**
- * Layout pass for view. Optimized to only recreate constraints when view size changes.
- * This improves performance by avoiding unnecessary constraint calculations.
+ * Layout pass for view. Recreates constraints only when the view size or safe area changes.
  */
 - (void)viewWillLayoutSubviews {
     [super viewWillLayoutSubviews];
@@ -544,12 +601,18 @@
     if (currentError)
         return;
 
-    // Performance optimization: Only recreate constraints if view size changed
-    if (constraintsCreated && CGSizeEqualToSize(lastViewSize, self.view.bounds.size)) {
+    UIEdgeInsets safeInsets = UIEdgeInsetsZero;
+    if (@available(iOS 11.0, *))
+        safeInsets = self.view.safeAreaInsets;
+
+    // Only recreate constraints when the size or safe area changes.
+    if (constraintsCreated && CGSizeEqualToSize(lastViewSize, self.view.bounds.size) &&
+        UIEdgeInsetsEqualToEdgeInsets(lastSafeAreaInsets, safeInsets)) {
         return;
     }
 
     lastViewSize = self.view.bounds.size;
+    lastSafeAreaInsets = safeInsets;
     BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
 
     // Deactivate and clear existing constraints
@@ -638,16 +701,64 @@
     [NSLayoutConstraint activateConstraints:_ledCountLabelConstraints];
 }
 
+/** Height occupied by the lock switch and its label at the top of the screen. */
+- (CGFloat)topChromeHeight {
+    CGFloat switchHeight = _lockSwitch.intrinsicContentSize.height;
+    CGFloat labelHeight = ceil(_lockSwitchLabel.font.lineHeight) * _lockSwitchLabel.numberOfLines;
+    return kTLEdgeInset + switchHeight + kTLLayoutSpacing + labelHeight;
+}
+
+/** Height occupied by the bottom edge, plus the LED-count control on quad-LED devices. */
+- (CGFloat)bottomChromeHeight:(BOOL)isLegacyLEDs {
+    CGFloat bottomSafe = 0;
+    if (@available(iOS 11.0, *))
+        bottomSafe = self.view.safeAreaInsets.bottom;
+
+    CGFloat height = bottomSafe + kTLEdgeInset;
+    if (!isLegacyLEDs && _ledCount) {
+        height += _ledCount.intrinsicContentSize.height + kTLLayoutSpacing + ceil(_ledCountLabel.font.lineHeight);
+    }
+    return height;
+}
+
 /**
  * Sets up constraints for LED sliders and their labels.
- * Calculates optimal spacing based on slider count and view width.
+ * Sliders are rotated, so their layout width is the on-screen length and their
+ * layout height is the on-screen thickness. Length fills the space between the
+ * lock controls and the footer, up to kTLSliderMaxLength.
  */
 - (void)setupSliderConstraints:(BOOL)isLegacyLEDs {
+    if (_sliders.count == 0)
+        return;
+
     CGFloat sliderWidth = kTLSliderWidth;
-    CGFloat sliderHeightMultiplier = (IS_IPAD || isLegacyLEDs) ? kTLiPadLayoutMultiplier : kTLiPhoneLayoutMultiplier;
-    CGFloat sliderHeight = self.view.bounds.size.height * sliderHeightMultiplier;
+    UIFont *nameFont = _sliderLabels.firstObject.font;
+    UIFont *valueFont = _sliderValueLabels.firstObject.font;
+    CGFloat labelStack = kTLSliderLabelSpacing + ceil(nameFont.lineHeight) + kTLSliderValueSpacing +
+                         ceil(valueFont.lineHeight);
+
+    CGFloat viewHeight = self.view.bounds.size.height;
+    CGFloat available = viewHeight - [self topChromeHeight] - [self bottomChromeHeight:isLegacyLEDs] -
+                        kTLSliderGroupPadding * 2.0;
+    CGFloat sliderLength = available - labelStack;
+    if (sliderLength > kTLSliderMaxLength)
+        sliderLength = kTLSliderMaxLength;
+    if (sliderLength < 1.0)
+        sliderLength = 1.0;
+
+    CGFloat groupHeight = sliderLength + labelStack;
+    CGFloat extraSpace = available - groupHeight;
+    if (extraSpace < 0)
+        extraSpace = 0;
+    CGFloat sliderCenterY = [self topChromeHeight] + kTLSliderGroupPadding + extraSpace / 2.0 + sliderLength / 2.0;
+
     CGFloat totalSlidersWidth = _sliders.count * sliderWidth;
     CGFloat spacing = (self.view.bounds.size.width - totalSlidersWidth) / (_sliders.count + 1);
+    CGFloat labelWidth = spacing + sliderWidth - 8.0;
+    if (labelWidth < 1.0)
+        labelWidth = 1.0;
+    // Layout bottom sits at the unrotated edge. Shift the label down to the visual end of the track.
+    CGFloat labelTopOffset = (sliderLength - sliderWidth) / 2.0 + kTLSliderLabelSpacing;
 
     for (NSInteger i = 0; i < _sliders.count; i++) {
         UISlider *slider = _sliders[i];
@@ -655,8 +766,9 @@
         NSLayoutConstraint *centerX =
             [slider.centerXAnchor constraintEqualToAnchor:self.view.leadingAnchor
                                                  constant:(i + 1) * spacing + i * sliderWidth + sliderWidth / 2];
-        NSLayoutConstraint *centerY = [slider.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor];
-        NSLayoutConstraint *width = [slider.widthAnchor constraintEqualToConstant:sliderHeight];
+        NSLayoutConstraint *centerY =
+            [slider.centerYAnchor constraintEqualToAnchor:self.view.topAnchor constant:sliderCenterY];
+        NSLayoutConstraint *width = [slider.widthAnchor constraintEqualToConstant:sliderLength];
         NSLayoutConstraint *height = [slider.heightAnchor constraintEqualToConstant:sliderWidth];
 
         [_sliderConstraints addObjectsFromArray:@[ centerX, centerY, width, height ]];
@@ -665,15 +777,16 @@
 
         NSLayoutConstraint *labelCenterX = [label.centerXAnchor constraintEqualToAnchor:slider.centerXAnchor];
         NSLayoutConstraint *labelTop = [label.topAnchor constraintEqualToAnchor:slider.bottomAnchor
-                                                                       constant:sliderHeight / 2 + 10];
+                                                                       constant:labelTopOffset];
+        NSLayoutConstraint *labelWidthConstraint = [label.widthAnchor constraintEqualToConstant:labelWidth];
 
-        [_sliderLabelConstraints addObjectsFromArray:@[ labelCenterX, labelTop ]];
+        [_sliderLabelConstraints addObjectsFromArray:@[ labelCenterX, labelTop, labelWidthConstraint ]];
 
         UILabel *valueLabel = _sliderValueLabels[i];
 
         NSLayoutConstraint *valueLabelCenterX = [valueLabel.centerXAnchor constraintEqualToAnchor:slider.centerXAnchor];
         NSLayoutConstraint *valueLabelTop = [valueLabel.topAnchor constraintEqualToAnchor:label.bottomAnchor
-                                                                                 constant:10];
+                                                                                 constant:kTLSliderValueSpacing];
 
         [_sliderValueLabelConstraints addObjectsFromArray:@[ valueLabelCenterX, valueLabelTop ]];
     }

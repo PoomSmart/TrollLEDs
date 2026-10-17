@@ -73,5 +73,4 @@ Build `.tipa` (sandboxed and unsandboxed) and `.deb` (rootful and rootless) with
 
 ## Future Plans
 
-1. More accessible sliders (are they too small?)
-2. As AppIntents metadata can only be generated from Xcode, we should find a way to generate it from theos
+1. As AppIntents metadata can only be generated from Xcode, we should find a way to generate it from theos

@@ -66,14 +66,26 @@ static const int kTLLegacySliderCount = 2;
 static const int kTLQuadSliderCount = 4;
 
 // MARK: - UI Configuration
-/// Spacing multiplier for iPad layouts
-static const CGFloat kTLiPadLayoutMultiplier = 0.4;
+/// Horizontal space reserved for each vertical slider, including its thumb.
+static const CGFloat kTLSliderWidth = 56.0;
 
-/// Spacing multiplier for iPhone layouts
-static const CGFloat kTLiPhoneLayoutMultiplier = 0.3;
+/// Visible thumb diameter. The rest of kTLSliderWidth is shadow padding.
+static const CGFloat kTLSliderThumbDiameter = 40.0;
 
-/// Slider width in points
-static const CGFloat kTLSliderWidth = 30.0;
+/// Thickness of the rounded slider track.
+static const CGFloat kTLSliderTrackThickness = 10.0;
+
+/// Longest slider travel, so large screens keep even margins.
+static const CGFloat kTLSliderMaxLength = 520.0;
+
+/// Space between the slider group and the controls above and below it.
+static const CGFloat kTLSliderGroupPadding = 16.0;
+
+/// Space between the bottom of a slider and its name label.
+static const CGFloat kTLSliderLabelSpacing = 12.0;
+
+/// Space between a slider's name label and its value label.
+static const CGFloat kTLSliderValueSpacing = 6.0;
 
 /// Font size for labels
 static const CGFloat kTLLabelFontSize = 14.0;
