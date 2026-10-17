@@ -15,6 +15,7 @@
         <string>AppleH9CamInUserClient</string>
         <string>AppleH10CamInUserClient</string>
         <string>AppleH13CamInUserClient</string>
+        <string>AppleH16CamInUserClient</string>
         <string>IOSurfaceRootUserClient</string>
     </array>
     <key>com.apple.private.security.no-sandbox</key>

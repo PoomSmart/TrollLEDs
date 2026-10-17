@@ -3,6 +3,7 @@
 #import <UIKit/UIColor+Private.h>
 #import "TLRootViewController.h"
 #import "TLConstants.h"
+#import "TLFlashCapability.h"
 
 /**
  * TLRootViewController
@@ -76,16 +77,21 @@
 
     [_deviceManager checkType];
 
-    // Check if device type detection failed
-    if (_deviceManager.currentError) {
-        return; // Error will be displayed in viewDidLoad
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if (![defaults objectForKey:kTLQuadLEDsKey]) {
+        NSString *productType = TLCopyProductType();
+        [defaults setBool:TLProductPrefersQuadPhysicalLEDs(productType) forKey:kTLQuadLEDsKey];
     }
 
-    // Try to setup stream initially
+    // Setup stream and refine API from TorchManualParameters on the flashlight stream (authoritative for this app).
     BOOL success = [_deviceManager setupStream];
     if (!success) {
-        // Error is already set in currentError
         NSLog(@"TrollLEDs: Initial stream setup failed: %@", _deviceManager.currentError);
+        return;
+    }
+
+    if (_deviceManager.currentError) {
+        return;
     }
 }
 
@@ -570,7 +576,9 @@
         return;
     }
 
-    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
+    TLFlashAPI api = [_deviceManager flashAPI];
+    BOOL isLegacyLEDs = (api == TLFlashAPILegacyDual);
+    BOOL isQuadManual = (api == TLFlashAPIQuadManual);
     int sliderCount = isLegacyLEDs ? kTLLegacySliderCount : kTLQuadSliderCount;
     int maxValue = isLegacyLEDs ? kTLLegacyLEDMaxLevel : kTLQuadLEDMaxLevel;
 
@@ -578,7 +586,7 @@
     [self restoreState];
 
     [self configureLockSwitch];
-    if (!isLegacyLEDs)
+    if (isQuadManual)
         [self configureLEDCount];
     [self configureLEDSliders:sliderCount maximumValue:maxValue];
 
@@ -893,7 +901,10 @@
 }
 
 - (void)updateParameters {
-    if ([_deviceManager isLegacyLEDs]) {
+    TLFlashAPI api = [_deviceManager flashAPI];
+    if (api != TLFlashAPIQuadManual && api != TLFlashAPILegacyDual)
+        return;
+    if (api == TLFlashAPILegacyDual) {
         NSNumber *torchLevelValue = @(LEDLevel);
         NSDictionary *torchColorValue = @{@"WarmLEDPercentile" : @(WarmLEDPercentile)};
         [_deviceManager setProperty:kTLPropertyTorchLevel value:torchLevelValue];

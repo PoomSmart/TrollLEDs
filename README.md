@@ -11,6 +11,8 @@
 - Devices with a single-color flashlight LED are not supported, such as iPhone 4s and iPhone 5
 - **iPhone 14 series and higher are not supported**, as [Apple has completely redesigned the flashlight LEDs](https://appleinsider.com/articles/22/09/20/how-iphone-14-pro-adaptive-true-tone-flash-creates-perfect-light-for-your-photos)
 
+Per-device API and physical LED notes: [COMPATIBILITY.md](COMPATIBILITY.md).
+
 ## Usage (Quad-LEDs Devices)
 
 Quad-LEDs devices are the devices that the private API `SetTorchManualParameters` can successfully adjust the LEDs. `SetTorchManualParameters` expects four parameters (LED levels of White 1, White 2, Amber 1 and Amber 2). This includes most modern devices with flashlight LEDs such as iPhone 11 (two physical LEDs) and iPad Pro 3rd generation (four physical LEDs).

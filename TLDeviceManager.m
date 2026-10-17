@@ -1,4 +1,6 @@
 #import "TLDeviceManager.h"
+#import "TLFlashCapability.h"
+#import "TLConstants.h"
 #import <dlfcn.h>
 
 /**
@@ -57,39 +59,59 @@
     pid = getpid();
 }
 
+static NSString *const kTLSegmentedUnavailableError =
+    @"This device uses adaptive True Tone flash. Segmented LED control is not available in this "
+    @"version of TrollLEDs yet.";
+
+- (void)applyFlashAPI:(TLFlashAPI)api {
+    flashAPI = api;
+    legacyLEDs = (api == TLFlashAPILegacyDual);
+
+    if (api == TLFlashAPISegmentedAdaptive && !TLFlashSegmentedControlIsAvailable())
+        _currentError = kTLSegmentedUnavailableError;
+    else if ([_currentError isEqualToString:kTLSegmentedUnavailableError])
+        _currentError = nil;
+}
+
 /**
- * Checks the device type to determine if it uses legacy LEDs or modern quad-LEDs.
- * Legacy devices use AppleH6CamIn or AppleH9CamIn IOKit services.
- * Sets currentError if IOKit framework cannot be loaded.
+ * Symbol-based classification on the active ISP (see TLFlashCapability). Refined again after the flashlight stream
+ * is created, because the stream property surface is what TrollLEDs actually uses.
  */
 - (void)checkType {
-    void *IOKit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW);
-    if (!IOKit) {
-        _currentError = @"Failed to load IOKit framework.";
-        return;
+    [self applyFlashAPI:TLDetectFlashAPI()];
+}
+
+- (BOOL)streamExposesTorchManualParameters {
+    if (streamRef && streamCopyProperty) {
+        CFTypeRef value = NULL;
+        OSStatus status =
+            streamCopyProperty((CMBaseObjectRef)streamRef, kTLPropertyTorchManualParameters, kCFAllocatorDefault, &value);
+        if (value)
+            CFRelease(value);
+        if (status == 0)
+            return YES;
     }
-
-    mach_port_t *kIOMasterPortDefault = (mach_port_t *)dlsym(IOKit, "kIOMasterPortDefault");
-    CFMutableDictionaryRef (*IOServiceMatching)(const char *name) =
-        (CFMutableDictionaryRef(*)(const char *))dlsym(IOKit, "IOServiceMatching");
-    mach_port_t (*IOServiceGetMatchingService)(mach_port_t masterPort, CFDictionaryRef matching) =
-        (mach_port_t(*)(mach_port_t, CFDictionaryRef))dlsym(IOKit, "IOServiceGetMatchingService");
-    kern_return_t (*IOObjectRelease)(mach_port_t object) =
-        (kern_return_t(*)(mach_port_t))dlsym(IOKit, "IOObjectRelease");
-
-    if (!kIOMasterPortDefault || !IOServiceMatching || !IOServiceGetMatchingService || !IOObjectRelease) {
-        _currentError = @"Failed to load required IOKit symbols.";
-        return;
+    if (device) {
+        id manual = [self getProperty:kTLPropertyTorchManualParameters];
+        if ([manual isKindOfClass:[NSDictionary class]])
+            return YES;
     }
+    return NO;
+}
 
-    mach_port_t h9 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH9CamIn"));
-    mach_port_t h6 = IOServiceGetMatchingService(*kIOMasterPortDefault, IOServiceMatching("AppleH6CamIn"));
-    legacyLEDs = h9 || h6;
-    if (h9)
-        IOObjectRelease(h9);
-    if (h6)
-        if (h6)
-            IOObjectRelease(h6);
+- (void)refineFlashAPIWithStream {
+    if (!initialized)
+        return;
+
+    // GET can fail even when SET of TorchManualParameters works. Only promote, never demote to legacy.
+    if ([self streamExposesTorchManualParameters]) {
+        NSLog(@"TrollLEDs: flashlight stream exposes TorchManualParameters; using quad-manual API");
+        [self applyFlashAPI:TLFlashAPIQuadManual];
+    }
+}
+
+- (TLFlashAPI)flashAPI {
+    return flashAPI;
 }
 
 /**
@@ -236,12 +258,14 @@
                 const CMBaseVTable *vtable = CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
                 if (vtable && vtable->baseClass) {
                     streamSetProperty = vtable->baseClass->setProperty;
+                    streamCopyProperty = vtable->baseClass->copyProperty;
                 }
             } else {
                 const CMBaseVTable_iOS10 *vtable =
                     (const CMBaseVTable_iOS10 *)CMBaseObjectGetVTable((CMBaseObjectRef)streamRef);
                 if (vtable && vtable->baseClass) {
                     streamSetProperty = vtable->baseClass->setProperty;
+                    streamCopyProperty = vtable->baseClass->copyProperty;
                 }
             }
 
@@ -271,6 +295,7 @@
     }
 
     initialized = YES;
+    [self refineFlashAPIWithStream];
     return YES;
 }
 
@@ -317,6 +342,7 @@
 
     // Clear all state
     streamSetProperty = NULL;
+    streamCopyProperty = NULL;
     device = nil;
     stream = nil;
     client = 0;

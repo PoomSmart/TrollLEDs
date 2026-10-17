@@ -5,7 +5,7 @@ TARGET = iphone:clang:latest:10.0
 endif
 INSTALL_TARGET_PROCESSES = TrollLEDs
 ARCHS = arm64
-PACKAGE_VERSION = 1.11.0
+PACKAGE_VERSION = 1.12.0
 
 APPLICATION_NAME = TrollLEDs
 INFO_PLIST_IN = Resources/Info.plist.in
@@ -27,7 +27,7 @@ endif
 
 before-all:: sync-version
 
-$(APPLICATION_NAME)_FILES = main.m TLDeviceManager.m TLSceneDelegate.m TLAppDelegate.m TLRootViewController.m TLLEDReader.m Intents.swift ShortcutsProvider.swift
+$(APPLICATION_NAME)_FILES = main.m TLDeviceManager.m TLFlashCapability.m TLSceneDelegate.m TLAppDelegate.m TLRootViewController.m TLLEDReader.m Intents.swift ShortcutsProvider.swift
 $(APPLICATION_NAME)_FRAMEWORKS = UIKit CoreGraphics CoreMedia
 $(APPLICATION_NAME)_CFLAGS = -fobjc-arc
 ifeq ($(UNSANDBOX),1)

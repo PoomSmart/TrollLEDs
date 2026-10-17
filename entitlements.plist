@@ -11,10 +11,15 @@
     <key>com.apple.security.exception.iokit-user-client-class</key>
     <array>
         <string>AGXDeviceUserClient</string>
+        <!-- H6/H9: legacy dual-LED (5s, SE1, 6-era) -->
         <string>AppleH6CamInUserClient</string>
         <string>AppleH9CamInUserClient</string>
+        <!-- H10: AppleH10CameraInterface (A11–A13, including iPhone 11) -->
         <string>AppleH10CamInUserClient</string>
+        <!-- H13: AppleH13CameraInterface, appleh13camerad (iOS 17+ IPSW diffs) -->
         <string>AppleH13CamInUserClient</string>
+        <!-- H16: AppleH16CameraInterface, appleh16camerad, H16ISP (iOS 18+ / Pro-class) -->
+        <string>AppleH16CamInUserClient</string>
         <string>IOSurfaceRootUserClient</string>
     </array>
     <key>com.apple.security.exception.mach-lookup.global-name</key>
@@ -24,6 +29,7 @@
         <string>com.apple.appleh9camerad</string>
         <string>com.apple.appleh10camerad</string>
         <string>com.apple.appleh13camerad</string>
+        <string>com.apple.appleh16camerad</string>
     </array>
     <key>sysctl-read</key>
     <array>

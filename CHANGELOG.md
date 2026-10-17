@@ -2,6 +2,13 @@
 
 All notable changes to TrollLEDs will be documented in this file.
 
+## 1.12.0
+
+- Detect Dual-LED vs Quad-LED API from the live camera interface (`AppleH6CamIn` / `AppleH9CamIn`), and use Quad-LED when `TorchManualParameters` is available on the flashlight stream
+- Default physical LED count to Quad on iPad Pro models with a four-LED flash module
+- Add `AppleH16CamIn` entitlements
+- Add per-device compatibility notes
+
 ## 1.11.0
 
 - Enlarged LED sliders with thicker tracks, larger thumbs, and clearer value labels for easier adjustment
