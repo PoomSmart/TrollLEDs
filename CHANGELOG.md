@@ -2,6 +2,11 @@
 
 All notable changes to TrollLEDs will be documented in this file.
 
+## 1.11.0
+
+- Enlarged LED sliders with thicker tracks, larger thumbs, and clearer value labels for easier adjustment
+- Reworked slider layout to use available vertical space between the lock controls and footer while respecting safe areas
+
 ## 1.10.0
 
 - (iOS 16+) Added `Get LED Levels` app shortcut, which returns the current LED brightness levels (reads from hardware when locked, or from saved state when unlocked)
