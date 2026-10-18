@@ -1,6 +1,6 @@
 Package: com.ps.trollleds
 Name: TrollLEDs
-Version: 1.12.0
+Version: 1.13.0
 Depends: firmware (>= 10.0), firmware (>= 12.2) | ${LIBSWIFT}, gsc.camera-flash
 Architecture: iphoneos-arm
 Description: Controls flashlight LEDs with eases.

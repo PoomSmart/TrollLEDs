@@ -5,7 +5,7 @@ TARGET = iphone:clang:latest:10.0
 endif
 INSTALL_TARGET_PROCESSES = TrollLEDs
 ARCHS = arm64
-PACKAGE_VERSION = 1.12.0
+PACKAGE_VERSION = 1.13.0
 
 APPLICATION_NAME = TrollLEDs
 INFO_PLIST_IN = Resources/Info.plist.in

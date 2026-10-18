@@ -4,7 +4,7 @@
 #import <sys/sysctl.h>
 
 BOOL TLFlashSegmentedControlIsAvailable(void) {
-    return NO;
+    return YES;
 }
 
 NSString *TLCopyProductType(void) {
@@ -109,13 +109,16 @@ BOOL TLISPSupportsIndividualTorchLEDLevels(int ispVersion) {
 }
 
 TLFlashAPI TLDetectFlashAPIForISPVersion(int ispVersion) {
-    // TrollLEDs stream API: H6/H9 use TorchLevel + TorchColor. Everything else that this app
+    // TrollLEDs stream API: H6/H9 use TorchLevel + TorchColor. H16 (iPhone 14 and later)
+    // uses TorchSegmentParameters (center / corners / sides). Everything else that this app
     // currently supports uses TorchManualParameters. Do not require a matching H*ISP.mediacapture
     // on disk: CamIn generation and plugin filename are not the same numbering, and IPSWs ship
     // extra plugins. Missing plugin used to be classified as legacy and showed two sliders on
     // iPhone 11.
     if (ispVersion == 6 || ispVersion == 9)
         return TLFlashAPILegacyDual;
+    if (ispVersion >= 16)
+        return TLFlashAPISegmentedAdaptive;
     return TLFlashAPIQuadManual;
 }
 

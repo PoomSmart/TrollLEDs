@@ -25,7 +25,6 @@
     if (isLocked && deviceManager && [deviceManager isInitialized]) {
         @try {
             if ([deviceManager isLegacyLEDs]) {
-                // For legacy devices, read torch level and warmth
                 NSNumber *torchLevel = [deviceManager getProperty:kTLPropertyTorchLevel];
                 NSDictionary *torchColor = [deviceManager getProperty:kTLPropertyTorchColor];
 
@@ -36,15 +35,31 @@
                     result[@"warmth"] = torchColor[@"WarmLEDPercentile"];
                 }
 
-                // Fill in defaults for quad LED values (not applicable for legacy)
                 result[@"coolLED0"] = @(0);
                 result[@"coolLED1"] = @(0);
                 result[@"warmLED0"] = @(0);
                 result[@"warmLED1"] = @(0);
-
+                result[@"centerLED"] = @(0);
+                result[@"cornerLED"] = @(0);
+                result[@"sideLED"] = @(0);
                 result[@"source"] = @"hardware";
+            } else if ([deviceManager isSegmentedLEDs]) {
+                NSDictionary *segmentParams = [deviceManager getProperty:kTLPropertyTorchSegmentParameters];
+                NSArray *levels = segmentParams[@"SegmentLEDLevels"];
+                if ([levels isKindOfClass:[NSArray class]] && levels.count >= 3) {
+                    result[@"centerLED"] = levels[0] ?: @(0);
+                    result[@"cornerLED"] = levels[1] ?: @(0);
+                    result[@"sideLED"] = levels[2] ?: @(0);
+                    result[@"source"] = @"hardware";
+                }
+
+                result[@"coolLED0"] = @(0);
+                result[@"coolLED1"] = @(0);
+                result[@"warmLED0"] = @(0);
+                result[@"warmLED1"] = @(0);
+                result[@"torchLevel"] = @(0);
+                result[@"warmth"] = @(0);
             } else {
-                // For quad-LED devices, read manual parameters
                 NSDictionary *manualParams = [deviceManager getProperty:kTLPropertyTorchManualParameters];
 
                 if (manualParams) {
@@ -55,9 +70,11 @@
                     result[@"source"] = @"hardware";
                 }
 
-                // Fill in defaults for legacy values (not applicable for quad)
                 result[@"torchLevel"] = @(0);
                 result[@"warmth"] = @(0);
+                result[@"centerLED"] = @(0);
+                result[@"cornerLED"] = @(0);
+                result[@"sideLED"] = @(0);
             }
         } @catch (NSException *exception) {
             NSLog(@"TrollLEDs: Exception reading hardware LED values: %@", exception.reason);
@@ -71,6 +88,9 @@
         result[@"coolLED1"] = @([defaults integerForKey:kTLCoolLED1LevelKey]);
         result[@"warmLED0"] = @([defaults integerForKey:kTLWarmLED0LevelKey]);
         result[@"warmLED1"] = @([defaults integerForKey:kTLWarmLED1LevelKey]);
+        result[@"centerLED"] = @([defaults integerForKey:kTLCenterLEDLevelKey]);
+        result[@"cornerLED"] = @([defaults integerForKey:kTLCornerLEDLevelKey]);
+        result[@"sideLED"] = @([defaults integerForKey:kTLSideLEDLevelKey]);
         result[@"torchLevel"] = @([defaults doubleForKey:kTLTorchLevelKey]);
         result[@"warmth"] = @([defaults integerForKey:kTLWarmthPercentileKey]);
         result[@"source"] = @"defaults";

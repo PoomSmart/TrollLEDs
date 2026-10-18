@@ -41,6 +41,44 @@ struct WhiteOnIntent: AppIntent {
 }
 
 @available(iOS 16.0, *)
+struct CenterOnIntent: AppIntent {
+    static let title: LocalizedStringResource = "Center On"
+    static let description = IntentDescription(
+        "Turn on the center flash group (adaptive True Tone)",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.CenterOn") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 16.0, *)
+struct RingOnIntent: AppIntent {
+    static let title: LocalizedStringResource = "Ring On"
+    static let description = IntentDescription(
+        "Turn on the flash ring, corners and sides (adaptive True Tone)",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.RingOn") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 16.0, *)
 struct AllOnIntent: AppIntent {
     static let title: LocalizedStringResource = "All On"
     static let description = IntentDescription(
@@ -82,7 +120,7 @@ struct AllOffIntent: AppIntent {
 struct ManualIntent: AppIntent {
     static let title: LocalizedStringResource = "Manual"
     static let description = IntentDescription(
-        "Configure LEDs levels manually (0 - 255) (For Quad-LEDs devices only)",
+        "Configure LEDs levels manually (0 - 255) (for Quad-LED devices)",
         categoryName: "Device"
     )
     static let openAppWhenRun: Bool = true
@@ -114,6 +152,38 @@ struct ManualIntent: AppIntent {
 }
 
 @available(iOS 16.0, *)
+struct SegmentedManualIntent: AppIntent {
+    static let title: LocalizedStringResource = "Manual (Adaptive Flash)"
+    static let description = IntentDescription(
+        "Configure center, corners, and sides (0 - 255) on adaptive True Tone flash",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Center", inclusiveRange: (0, 255))
+    var centerLED: Int
+
+    @Parameter(title: "Corners", inclusiveRange: (0, 255))
+    var cornerLED: Int
+
+    @Parameter(title: "Sides", inclusiveRange: (0, 255))
+    var sideLED: Int
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Configure adaptive flash to (\(\.$centerLED), \(\.$cornerLED), \(\.$sideLED))")
+    }
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.Manual?centerLED=\(centerLED)&cornerLED=\(cornerLED)&sideLED=\(sideLED)") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 16.0, *)
 struct GetLEDLevelsIntent: AppIntent {
     static let title: LocalizedStringResource = "Get LED Levels"
     static let description = IntentDescription(
@@ -132,6 +202,9 @@ struct GetLEDLevelsIntent: AppIntent {
         let coolLED1 = levels["coolLED1"] as? Int ?? 0
         let warmLED0 = levels["warmLED0"] as? Int ?? 0
         let warmLED1 = levels["warmLED1"] as? Int ?? 0
+        let centerLED = levels["centerLED"] as? Int ?? 0
+        let cornerLED = levels["cornerLED"] as? Int ?? 0
+        let sideLED = levels["sideLED"] as? Int ?? 0
         let torchLevel = levels["torchLevel"] as? Double ?? 0.0
         let warmth = levels["warmth"] as? Int ?? 0
         let isLocked = levels["isLocked"] as? Bool ?? false
@@ -145,6 +218,9 @@ struct GetLEDLevelsIntent: AppIntent {
         Cool LED 1: \(coolLED1)
         Warm LED 0: \(warmLED0)
         Warm LED 1: \(warmLED1)
+        Center: \(centerLED)
+        Corners: \(cornerLED)
+        Sides: \(sideLED)
         Torch Level: \(Int(torchLevel * 100))%
         Warmth: \(warmth)%
         Lock State: \(isLocked ? "Locked" : "Unlocked")
