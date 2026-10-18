@@ -44,7 +44,7 @@ Detection: live `AppleH6CamIn` or `AppleH9CamIn` → Dual-LED API; `AppleH16CamI
 | iPhone 14 / 14 Plus | Segmented-LED | 2 | True Tone (not Adaptive) | Unverified |
 | iPhone 14 Pro / 14 Pro Max | Segmented-LED | 9 | Adaptive True Tone | Unverified |
 | iPhone 15 and later (non-Pro) | Segmented-LED | 2 | True Tone | Unverified |
-| iPhone 15 Pro and later Pro | Segmented-LED | 9 | Adaptive True Tone | Unverified |
+| iPhone 15 Pro and later Pro | Segmented-LED | 9 | Adaptive True Tone | Proven |
 
 ## iPad
 
