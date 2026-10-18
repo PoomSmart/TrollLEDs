@@ -2,6 +2,12 @@
 
 All notable changes to TrollLEDs will be documented in this file.
 
+## 1.13.0
+
+- Control adaptive True Tone flash on iPhone 14 and later as three groups (Center, Corners, Sides) via `TorchSegmentParameters`
+- (iOS 16+) Added `Manual (Adaptive Flash)` app shortcut for those three groups
+- Amber On / White On on adaptive flash map to the ring and the center group
+
 ## 1.12.0
 
 - Detect Dual-LED vs Quad-LED API from the live camera interface (`AppleH6CamIn` / `AppleH9CamIn`), and use Quad-LED when `TorchManualParameters` is available on the flashlight stream

@@ -19,6 +19,7 @@
 @property (nonatomic, strong) NSString *currentError;
 - (TLFlashAPI)flashAPI;
 - (BOOL)isLegacyLEDs;
+- (BOOL)isSegmentedLEDs;
 - (BOOL)isInitialized;
 - (BOOL)setupStream;
 - (void)releaseStream;
@@ -26,5 +27,6 @@
 - (void)checkType;
 - (void)refineFlashAPIWithStream;
 - (void)setProperty:(CFStringRef)property value:(id)value;
+- (void)setSegmentedLEDCenter:(int)center corners:(int)corners sides:(int)sides;
 - (id)getProperty:(CFStringRef)property;
 @end

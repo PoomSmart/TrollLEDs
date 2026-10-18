@@ -8,7 +8,8 @@ TrollLEDs needs iOS 10 or later and a rear flashlight with more than one color (
 |-----|----|
 | Dual-LED | `Torch Level` + `Warmth`. `SetTorchManualParameters` is not used. |
 | Quad-LED | Four sliders via `SetTorchManualParameters` (`Cool LED 0/1`, `Warm LED 0/1`). |
-| Not supported | Adaptive / redesigned flash, or no multi-color rear LED. |
+| Segmented-LED | Three sliders via `TorchSegmentParameters` (`Center`, `Corners`, `Sides`). Nine independent dimmers are not available. |
+| Not supported | No multi-color rear LED. |
 
 **Physical LEDs** is how many emitters the housing has. Quad-LED API devices may still have only two bulbs; the in-app Dual/Quad control is for that. There is no reliable automatic physical-count detection. Devices that share the same Apple flash name use the same physical LED count. Four physical LEDs use the Quad-LED API.
 
@@ -16,7 +17,7 @@ Apple’s **Dual-LED** / **Quad-LED True Tone** wording is a spec clue, not the 
 
 **Status:** **Proven** means known with TrollLEDs, or the same four-channel `SetIndividualTorchLEDLevels` path verified on device (white and amber independently). Spec clues and failed/unconfirmed third-party reports do not make a row Proven. Unsupported devices use **N/A**.
 
-Detection: live `AppleH6CamIn` or `AppleH9CamIn` → Dual-LED API; otherwise Quad-LED API (known CamIn list `{16, 13, 10, 9, 6}`). That is what the app implements, not a per-model guarantee.
+Detection: live `AppleH6CamIn` or `AppleH9CamIn` → Dual-LED API; `AppleH16CamIn` and later → Segmented-LED API; otherwise Quad-LED API (known CamIn list `{16, 13, 10, 9, 6}`). That is what the app implements, not a per-model guarantee.
 
 ## iPhone
 
@@ -40,10 +41,10 @@ Detection: live `AppleH6CamIn` or `AppleH9CamIn` → Dual-LED API; otherwise Qua
 | iPhone 12 / 12 mini / 12 Pro / 12 Pro Max | Unverified | 2 | Dual-LED True Tone | Unverified |
 | iPhone 13 / 13 mini / 13 Pro / 13 Pro Max | Unverified | 2 | Dual-LED True Tone | Unverified |
 | iPhone SE (3rd generation) | Unverified | 2 | True Tone | Unverified |
-| iPhone 14 / 14 Plus | Not supported | 2 | True Tone (not Adaptive) | N/A |
-| iPhone 14 Pro / 14 Pro Max | Not supported | 9 | Adaptive True Tone | N/A |
-| iPhone 15 and later (non-Pro) | Not supported | 2 | True Tone | N/A |
-| iPhone 15 Pro and later Pro | Not supported | 9 | Adaptive True Tone | N/A |
+| iPhone 14 / 14 Plus | Segmented-LED | 2 | True Tone (not Adaptive) | Unverified |
+| iPhone 14 Pro / 14 Pro Max | Segmented-LED | 9 | Adaptive True Tone | Unverified |
+| iPhone 15 and later (non-Pro) | Segmented-LED | 2 | True Tone | Unverified |
+| iPhone 15 Pro and later Pro | Segmented-LED | 9 | Adaptive True Tone | Unverified |
 
 ## iPad
 
@@ -59,7 +60,7 @@ Retina Flash (front screen) is not TrollLEDs. Only a rear LED flash counts.
 | iPad Pro 11-inch (2nd generation) | Quad-LED | 4 | Brighter True Tone | Unverified |
 | iPad Pro 11-inch (3rd generation) | Quad-LED | 4 | Brighter True Tone | Proven |
 | iPad Pro 11-inch (4th generation) / 12.9-inch (4th generation) and later until M4 | Quad-LED | 4 | Brighter True Tone | Unverified |
-| iPad Pro 11-inch / 13-inch (M4) | Unverified | 9 | Adaptive True Tone | Unverified |
+| iPad Pro 11-inch / 13-inch (M4) | Segmented-LED | 9 | Adaptive True Tone | Unverified |
 | iPad mini (6th generation) | Quad-LED | 4 | Quad-LED True Tone | Unverified |
 | iPad mini (A17 Pro) | Unverified | 2 | True Tone | Unverified |
 | iPad / iPad Air (all generations) | Not supported | None | No rear flash | N/A |

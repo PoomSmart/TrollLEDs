@@ -30,7 +30,7 @@ BOOL TLISPSupportsSegmentedTorch(int ispVersion);
 /// Whether the loaded ISP image exports SetIndividualTorchLEDLevels.
 BOOL TLISPSupportsIndividualTorchLEDLevels(int ispVersion);
 
-/// H6/H9 CamIn → legacy dual; otherwise TorchManualParameters (quad-manual) for this app.
+/// H6/H9 CamIn → legacy dual; H16 and newer → segmented adaptive; otherwise quad-manual.
 TLFlashAPI TLDetectFlashAPIForISPVersion(int ispVersion);
 
 /// Chooses the flashlight stream API from the live AppleH*CamIn service.

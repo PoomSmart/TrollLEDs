@@ -9,7 +9,7 @@
 - iOS 10 or higher
 - iPhone or iPad with multiple of different flashlight LEDs (e.g. amber and regular white)
 - Devices with a single-color flashlight LED are not supported, such as iPhone 4s and iPhone 5
-- **iPhone 14 series and higher are not supported**, as [Apple has completely redesigned the flashlight LEDs](https://appleinsider.com/articles/22/09/20/how-iphone-14-pro-adaptive-true-tone-flash-creates-perfect-light-for-your-photos)
+- iPhone 14 and later use adaptive True Tone flash. TrollLEDs drives that as three groups (center, corners, sides), not nine independent dimmers. See [Apple’s Adaptive True Tone write-up](https://appleinsider.com/articles/22/09/20/how-iphone-14-pro-adaptive-true-tone-flash-creates-perfect-light-for-your-photos).
 
 Per-device API and physical LED notes: [COMPATIBILITY.md](COMPATIBILITY.md).
 
@@ -41,6 +41,26 @@ If the value is set to `Dual`:
 3. The app shortcut `All On` will maximize the `Cool LED 0` and `Warm LED 0` sliders only
 
 If the value is set to `Quad`, the app shortcuts will maximize all related sliders.
+
+## Usage (Adaptive Flash Devices)
+
+Adaptive flash devices (iPhone 14 and later, and later iPad Pro models with Adaptive True Tone) expose `TorchSegmentParameters` instead of four independent channels. Hardware folds the emitters into three current groups, so the app shows three sliders:
+
+1. `Center` - The center emitter
+2. `Corners` - The four corner emitters (shared current)
+3. `Sides` - The four side emitters (shared current)
+
+Each slider is 0–255. Setting all three to 0 turns the flash off.
+
+App shortcuts:
+
+1. `White On` maximizes `Center` and turns the ring off
+2. `Amber On` turns `Center` off and maximizes `Corners` and `Sides`
+3. `All On` / `All Off` set all three groups
+
+Nine independent LED levels are not possible: corners share one current, sides share another, and the ISP packs at most eight segments.
+
+On non-Pro iPhone 14 and later the same stream API is used; the physical mapping of corners and sides is less certain than on 14 Pro.
 
 ## Usage (Dual-LEDs Devices)
 

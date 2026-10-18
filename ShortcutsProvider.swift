@@ -44,6 +44,14 @@ struct TrollLEDsAppShortcutsProvider: AppShortcutsProvider {
             systemImageName: "flashlight.on.circle.fill"
         )
         AppShortcut(
+            intent: SegmentedManualIntent(),
+            phrases: [
+                "Configure adaptive flash with \(.applicationName)"
+            ],
+            shortTitle: "Manual Adaptive",
+            systemImageName: "flashlight.on.circle.fill"
+        )
+        AppShortcut(
             intent: GetLEDLevelsIntent(),
             phrases: [
                 "Get LED levels with \(.applicationName)",

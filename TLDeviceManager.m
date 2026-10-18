@@ -103,6 +103,10 @@ static NSString *const kTLSegmentedUnavailableError =
     if (!initialized)
         return;
 
+    // H16 still exposes TorchManualParameters GET, but that path is remapped in firmware.
+    if (flashAPI == TLFlashAPISegmentedAdaptive)
+        return;
+
     // GET can fail even when SET of TorchManualParameters works. Only promote, never demote to legacy.
     if ([self streamExposesTorchManualParameters]) {
         NSLog(@"TrollLEDs: flashlight stream exposes TorchManualParameters; using quad-manual API");
@@ -358,6 +362,10 @@ static NSString *const kTLSegmentedUnavailableError =
     return legacyLEDs;
 }
 
+- (BOOL)isSegmentedLEDs {
+    return flashAPI == TLFlashAPISegmentedAdaptive;
+}
+
 /**
  * Returns whether the device stream is currently initialized.
  * When initialized, the app has exclusive control over the LEDs.
@@ -418,6 +426,35 @@ static NSString *const kTLSegmentedUnavailableError =
  * Handles both object-based and function pointer-based stream property setting.
  * Includes error handling to prevent crashes from invalid parameters.
  */
+- (void)setSegmentedLEDCenter:(int)center corners:(int)corners sides:(int)sides {
+    int c = MIN(MAX(center, 0), kTLQuadLEDMaxLevel);
+    int corner = MIN(MAX(corners, 0), kTLQuadLEDMaxLevel);
+    int side = MIN(MAX(sides, 0), kTLQuadLEDMaxLevel);
+
+    NSDictionary *params;
+    if (c == 0 && corner == 0 && side == 0) {
+        params = @{
+            @"SegmentLEDSignature" : @0,
+            @"SegmentLEDMode" : @0,
+            @"SegmentLEDGroups" : @0,
+            @"SegmentLEDLevels" : @[],
+            @"SegmentLEDBitmasks" : @[]
+        };
+    } else {
+        params = @{
+            @"SegmentLEDSignature" : @0,
+            @"SegmentLEDMode" : @0,
+            @"SegmentLEDGroups" : @3,
+            @"SegmentLEDLevels" : @[ @(c), @(corner), @(side) ],
+            @"SegmentLEDBitmasks" : @[
+                @(kTLSegmentLEDCenterMask), @(kTLSegmentLEDCornerMask), @(kTLSegmentLEDSideMask)
+            ]
+        };
+    }
+
+    [self setProperty:kTLPropertyTorchSegmentParameters value:params];
+}
+
 - (void)setProperty:(CFStringRef)property value:(id)value {
     if (!property || !value) {
         NSLog(@"TrollLEDs: Attempted to set property with nil property or value");

@@ -20,6 +20,9 @@
     int CoolLED1Level;
     int WarmLED0Level;
     int WarmLED1Level;
+    int CenterLEDLevel;
+    int CornerLEDLevel;
+    int SideLEDLevel;
     BOOL constraintsCreated;          // Performance: Cache flag to avoid recreating constraints
     CGSize lastViewSize;              // Performance: Track view size changes for layout optimization
     UIEdgeInsets lastSafeAreaInsets;  // Rebuild when the home indicator or status bar inset changes
@@ -127,6 +130,10 @@
     return [[NSUserDefaults standardUserDefaults] boolForKey:kTLQuadLEDsKey];
 }
 
+- (BOOL)showsPhysicalLEDCount {
+    return [_deviceManager flashAPI] == TLFlashAPIQuadManual;
+}
+
 #pragma mark - State Persistence
 
 /**
@@ -143,6 +150,10 @@
     if ([_deviceManager isLegacyLEDs]) {
         [defaults setDouble:LEDLevel forKey:kTLTorchLevelKey];
         [defaults setInteger:WarmLEDPercentile forKey:kTLWarmthPercentileKey];
+    } else if ([_deviceManager isSegmentedLEDs]) {
+        [defaults setInteger:CenterLEDLevel forKey:kTLCenterLEDLevelKey];
+        [defaults setInteger:CornerLEDLevel forKey:kTLCornerLEDLevelKey];
+        [defaults setInteger:SideLEDLevel forKey:kTLSideLEDLevelKey];
     } else {
         [defaults setInteger:CoolLED0Level forKey:kTLCoolLED0LevelKey];
         [defaults setInteger:CoolLED1Level forKey:kTLCoolLED1LevelKey];
@@ -175,6 +186,13 @@
         if ([defaults objectForKey:kTLWarmthPercentileKey]) {
             WarmLEDPercentile = [defaults integerForKey:kTLWarmthPercentileKey];
         }
+    } else if ([_deviceManager isSegmentedLEDs]) {
+        if ([defaults objectForKey:kTLCenterLEDLevelKey])
+            CenterLEDLevel = (int)[defaults integerForKey:kTLCenterLEDLevelKey];
+        if ([defaults objectForKey:kTLCornerLEDLevelKey])
+            CornerLEDLevel = (int)[defaults integerForKey:kTLCornerLEDLevelKey];
+        if ([defaults objectForKey:kTLSideLEDLevelKey])
+            SideLEDLevel = (int)[defaults integerForKey:kTLSideLEDLevelKey];
     } else {
         if ([defaults objectForKey:kTLCoolLED0LevelKey]) {
             CoolLED0Level = (int)[defaults integerForKey:kTLCoolLED0LevelKey];
@@ -204,6 +222,13 @@
             _sliders[0].value = LEDLevel;
         if (_sliders.count > 1)
             _sliders[1].value = WarmLEDPercentile;
+    } else if ([_deviceManager isSegmentedLEDs]) {
+        if (_sliders.count > 0)
+            _sliders[0].value = CenterLEDLevel;
+        if (_sliders.count > 1)
+            _sliders[1].value = CornerLEDLevel;
+        if (_sliders.count > 2)
+            _sliders[2].value = SideLEDLevel;
     } else {
         if (_sliders.count > 0)
             _sliders[0].value = CoolLED0Level;
@@ -230,11 +255,16 @@
 
 - (void)handleShortcutAction:(NSString *)shortcutType withParameters:(NSArray<NSURLQueryItem *> *)parameters {
     BOOL legacy = [_deviceManager isLegacyLEDs];
+    BOOL segmented = [_deviceManager isSegmentedLEDs];
     BOOL quad = [self isQuadLEDs];
     if ([shortcutType isEqualToString:kTLShortcutAmberOn]) {
         if (legacy) {
             LEDLevel = 100;
             WarmLEDPercentile = 100;
+        } else if (segmented) {
+            CenterLEDLevel = 0;
+            CornerLEDLevel = kTLQuadLEDMaxLevel;
+            SideLEDLevel = kTLQuadLEDMaxLevel;
         } else {
             CoolLED0Level = 0;
             CoolLED1Level = 0;
@@ -245,6 +275,10 @@
         if (legacy) {
             LEDLevel = 100;
             WarmLEDPercentile = 0;
+        } else if (segmented) {
+            CenterLEDLevel = kTLQuadLEDMaxLevel;
+            CornerLEDLevel = 0;
+            SideLEDLevel = 0;
         } else {
             CoolLED0Level = kTLQuadLEDMaxLevel;
             CoolLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
@@ -254,6 +288,10 @@
     } else if ([shortcutType isEqualToString:kTLShortcutAllOn]) {
         if (legacy) {
             LEDLevel = 100;
+        } else if (segmented) {
+            CenterLEDLevel = kTLQuadLEDMaxLevel;
+            CornerLEDLevel = kTLQuadLEDMaxLevel;
+            SideLEDLevel = kTLQuadLEDMaxLevel;
         } else {
             CoolLED0Level = kTLQuadLEDMaxLevel;
             CoolLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
@@ -263,6 +301,10 @@
     } else if ([shortcutType isEqualToString:kTLShortcutAllOff]) {
         if (legacy) {
             LEDLevel = 0;
+        } else if (segmented) {
+            CenterLEDLevel = 0;
+            CornerLEDLevel = 0;
+            SideLEDLevel = 0;
         } else {
             CoolLED0Level = 0;
             CoolLED1Level = 0;
@@ -270,7 +312,16 @@
             WarmLED1Level = 0;
         }
     } else if ([shortcutType isEqualToString:kTLShortcutManual]) {
-        if (!legacy) {
+        if (segmented) {
+            for (NSURLQueryItem *parameter in parameters) {
+                if ([parameter.name isEqualToString:@"centerLED"])
+                    CenterLEDLevel = [parameter.value intValue];
+                else if ([parameter.name isEqualToString:@"cornerLED"])
+                    CornerLEDLevel = [parameter.value intValue];
+                else if ([parameter.name isEqualToString:@"sideLED"])
+                    SideLEDLevel = [parameter.value intValue];
+            }
+        } else if (!legacy) {
             for (NSURLQueryItem *parameter in parameters) {
                 if ([parameter.name isEqualToString:@"coolLED0"])
                     CoolLED0Level = [parameter.value intValue];
@@ -286,6 +337,10 @@
     if (legacy) {
         _sliders[0].value = LEDLevel;
         _sliders[1].value = WarmLEDPercentile;
+    } else if (segmented) {
+        _sliders[0].value = CenterLEDLevel;
+        _sliders[1].value = CornerLEDLevel;
+        _sliders[2].value = SideLEDLevel;
     } else {
         _sliders[0].value = CoolLED0Level;
         _sliders[1].value = CoolLED1Level;
@@ -333,6 +388,15 @@
             case 1:
                 return @"Warmth";
         }
+    } else if ([_deviceManager isSegmentedLEDs]) {
+        switch (index) {
+            case 0:
+                return @"Center";
+            case 1:
+                return @"Corners";
+            case 2:
+                return @"Sides";
+        }
     } else {
         switch (index) {
             case 0:
@@ -349,6 +413,16 @@
 }
 
 - (UIColor *)color:(int)index {
+    if ([_deviceManager isSegmentedLEDs]) {
+        switch (index) {
+            case 1:
+                return [UIColor systemYellowColor];
+            case 2:
+                return [UIColor systemOrangeColor];
+            default:
+                return [UIColor whiteColor];
+        }
+    }
     BOOL isWarm = [_deviceManager isLegacyLEDs] ? index == 1 : (index == 2 || index == 3);
     return isWarm ? [UIColor systemOrangeColor] : [UIColor whiteColor];
 }
@@ -578,15 +652,20 @@
 
     TLFlashAPI api = [_deviceManager flashAPI];
     BOOL isLegacyLEDs = (api == TLFlashAPILegacyDual);
-    BOOL isQuadManual = (api == TLFlashAPIQuadManual);
-    int sliderCount = isLegacyLEDs ? kTLLegacySliderCount : kTLQuadSliderCount;
-    int maxValue = isLegacyLEDs ? kTLLegacyLEDMaxLevel : kTLQuadLEDMaxLevel;
+    int sliderCount = kTLQuadSliderCount;
+    int maxValue = kTLQuadLEDMaxLevel;
+    if (isLegacyLEDs) {
+        sliderCount = kTLLegacySliderCount;
+        maxValue = kTLLegacyLEDMaxLevel;
+    } else if (api == TLFlashAPISegmentedAdaptive) {
+        sliderCount = kTLSegmentedSliderCount;
+    }
 
     // Restore state before configuring UI
     [self restoreState];
 
     [self configureLockSwitch];
-    if (isQuadManual)
+    if ([self showsPhysicalLEDCount])
         [self configureLEDCount];
     [self configureLEDSliders:sliderCount maximumValue:maxValue];
 
@@ -621,17 +700,17 @@
 
     lastViewSize = self.view.bounds.size;
     lastSafeAreaInsets = safeInsets;
-    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
+    BOOL showsLEDCount = [self showsPhysicalLEDCount];
 
     // Deactivate and clear existing constraints
-    [self deactivateAllConstraints:isLegacyLEDs];
+    [self deactivateAllConstraints:!showsLEDCount];
 
     // Setup constraints for each UI element
     [self setupLockSwitchConstraints];
-    if (!isLegacyLEDs) {
+    if (showsLEDCount) {
         [self setupLEDCountConstraints];
     }
-    [self setupSliderConstraints:isLegacyLEDs];
+    [self setupSliderConstraints:!showsLEDCount];
 
     constraintsCreated = YES;
 }
@@ -844,6 +923,18 @@
                 WarmLEDPercentile = value;
                 break;
         }
+    } else if ([_deviceManager isSegmentedLEDs]) {
+        switch (sender.tag) {
+            case 0:
+                CenterLEDLevel = value;
+                break;
+            case 1:
+                CornerLEDLevel = value;
+                break;
+            case 2:
+                SideLEDLevel = value;
+                break;
+        }
     } else {
         switch (sender.tag) {
             case 0:
@@ -873,7 +964,10 @@
     if (locked)
         [_deviceManager setupStream];
     else {
-        [_deviceManager setProperty:kTLPropertyTorchLevel value:@(0)];
+        if ([_deviceManager isSegmentedLEDs])
+            [_deviceManager setSegmentedLEDCenter:0 corners:0 sides:0];
+        else
+            [_deviceManager setProperty:kTLPropertyTorchLevel value:@(0)];
         [_deviceManager releaseStream];
     }
     _lockSwitchLabel.text = [self switchLabel];
@@ -902,14 +996,14 @@
 
 - (void)updateParameters {
     TLFlashAPI api = [_deviceManager flashAPI];
-    if (api != TLFlashAPIQuadManual && api != TLFlashAPILegacyDual)
-        return;
     if (api == TLFlashAPILegacyDual) {
         NSNumber *torchLevelValue = @(LEDLevel);
         NSDictionary *torchColorValue = @{@"WarmLEDPercentile" : @(WarmLEDPercentile)};
         [_deviceManager setProperty:kTLPropertyTorchLevel value:torchLevelValue];
         [_deviceManager setProperty:kTLPropertyTorchColor value:torchColorValue];
-    } else {
+    } else if (api == TLFlashAPISegmentedAdaptive) {
+        [_deviceManager setSegmentedLEDCenter:CenterLEDLevel corners:CornerLEDLevel sides:SideLEDLevel];
+    } else if (api == TLFlashAPIQuadManual) {
         NSDictionary *params = @{
             @"CoolLED0Level" : @(CoolLED0Level),
             @"CoolLED1Level" : @(CoolLED1Level),
