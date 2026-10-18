@@ -256,7 +256,7 @@
 
 - (void)updateHomeScreenShortcuts {
     UIApplicationShortcutIcon *icon =
-        [UIApplicationShortcutIcon iconWithType:UIApplicationShortcutIconTypeBrightness];
+        [UIApplicationShortcutIcon iconWithType:UIApplicationShortcutIconTypeCapturePhoto];
     BOOL segmented = [_deviceManager isSegmentedLEDs];
     UIApplicationShortcutItem *first;
     UIApplicationShortcutItem *second;
