@@ -50,13 +50,13 @@ Adaptive flash devices (iPhone 14 and later, and later iPad Pro models with Adap
 2. `Corners` - The four corner emitters (shared current)
 3. `Sides` - The four side emitters (shared current)
 
-Each slider is 0–255. Setting all three to 0 turns the flash off.
+Each slider is 0–255. Setting all three to 0 turns the flash off. Torch current is limited to about 200 mA, so a single group can go to 255 but two or three groups at once are scaled down on write. Without that, firmware turns the light off.
 
 App shortcuts:
 
 1. `White On` maximizes `Center` and turns the ring off
-2. `Amber On` turns `Center` off and maximizes `Corners` and `Sides`
-3. `All On` / `All Off` set all three groups
+2. `Amber On` turns `Center` off and maximizes `Corners` and `Sides` (scaled to the torch budget)
+3. `All On` / `All Off` set all three groups (`All On` is scaled the same way)
 
 Nine independent LED levels are not possible: corners share one current, sides share another, and the ISP packs at most eight segments.
 

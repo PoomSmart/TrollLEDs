@@ -87,6 +87,11 @@ static const uint64_t kTLSegmentLEDCornerMask = 0x145;
 /// Bitmask for the four side emitters (shared current)
 static const uint64_t kTLSegmentLEDSideMask = 0xAA;
 
+/// Max sum of the three 0-255 group levels for sustained torch.
+/// Firmware drops the request when center+corner+side milliamps reach 201 (about 180 mA per group).
+/// 255+29 was the last combo that stayed on on iPhone 15 Pro.
+static const int kTLSegmentedTorchLevelSumMax = 284;
+
 // MARK: - UI Configuration
 /// Horizontal space reserved for each vertical slider, including its thumb.
 static const CGFloat kTLSliderWidth = 56.0;

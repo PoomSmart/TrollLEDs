@@ -430,6 +430,12 @@ static NSString *const kTLSegmentedUnavailableError =
     int c = MIN(MAX(center, 0), kTLQuadLEDMaxLevel);
     int corner = MIN(MAX(corners, 0), kTLQuadLEDMaxLevel);
     int side = MIN(MAX(sides, 0), kTLQuadLEDMaxLevel);
+    int sum = c + corner + side;
+    if (sum > kTLSegmentedTorchLevelSumMax) {
+        c = (c * kTLSegmentedTorchLevelSumMax) / sum;
+        corner = (corner * kTLSegmentedTorchLevelSumMax) / sum;
+        side = (side * kTLSegmentedTorchLevelSumMax) / sum;
+    }
 
     NSDictionary *params;
     if (c == 0 && corner == 0 && side == 0) {
