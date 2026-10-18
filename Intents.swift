@@ -41,6 +41,44 @@ struct WhiteOnIntent: AppIntent {
 }
 
 @available(iOS 16.0, *)
+struct CenterOnIntent: AppIntent {
+    static let title: LocalizedStringResource = "Center On"
+    static let description = IntentDescription(
+        "Turn on the center flash group (adaptive True Tone)",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.CenterOn") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 16.0, *)
+struct RingOnIntent: AppIntent {
+    static let title: LocalizedStringResource = "Ring On"
+    static let description = IntentDescription(
+        "Turn on the flash ring, corners and sides (adaptive True Tone)",
+        categoryName: "Device"
+    )
+    static let openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: "leds://com.ps.TrollLEDs.RingOn") {
+            if await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+            }
+        }
+        return .result()
+    }
+}
+
+@available(iOS 16.0, *)
 struct AllOnIntent: AppIntent {
     static let title: LocalizedStringResource = "All On"
     static let description = IntentDescription(

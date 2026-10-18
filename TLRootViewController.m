@@ -79,6 +79,7 @@
     }
 
     [_deviceManager checkType];
+    [self updateHomeScreenShortcuts];
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if (![defaults objectForKey:kTLQuadLEDsKey]) {
@@ -253,38 +254,76 @@
 
 #pragma mark - Shortcut Handling
 
+- (void)updateHomeScreenShortcuts {
+    UIApplicationShortcutIcon *icon =
+        [UIApplicationShortcutIcon iconWithType:UIApplicationShortcutIconTypeBrightness];
+    BOOL segmented = [_deviceManager isSegmentedLEDs];
+    UIApplicationShortcutItem *first;
+    UIApplicationShortcutItem *second;
+    if (segmented) {
+        first = [[UIApplicationShortcutItem alloc] initWithType:kTLShortcutCenterOn
+                                               localizedTitle:@"Center On"
+                                            localizedSubtitle:nil
+                                                         icon:icon
+                                                     userInfo:nil];
+        second = [[UIApplicationShortcutItem alloc] initWithType:kTLShortcutRingOn
+                                                localizedTitle:@"Ring On"
+                                             localizedSubtitle:nil
+                                                          icon:icon
+                                                      userInfo:nil];
+    } else {
+        first = [[UIApplicationShortcutItem alloc] initWithType:kTLShortcutWhiteOn
+                                               localizedTitle:@"White On"
+                                            localizedSubtitle:nil
+                                                         icon:icon
+                                                     userInfo:nil];
+        second = [[UIApplicationShortcutItem alloc] initWithType:kTLShortcutAmberOn
+                                                localizedTitle:@"Amber On"
+                                             localizedSubtitle:nil
+                                                          icon:icon
+                                                      userInfo:nil];
+    }
+    UIApplicationShortcutItem *allOn =
+        [[UIApplicationShortcutItem alloc] initWithType:kTLShortcutAllOn
+                                       localizedTitle:@"All On"
+                                    localizedSubtitle:nil
+                                                 icon:icon
+                                             userInfo:nil];
+    [UIApplication sharedApplication].shortcutItems = @[ first, second, allOn ];
+}
+
 - (void)handleShortcutAction:(NSString *)shortcutType withParameters:(NSArray<NSURLQueryItem *> *)parameters {
     BOOL legacy = [_deviceManager isLegacyLEDs];
     BOOL segmented = [_deviceManager isSegmentedLEDs];
     BOOL quad = [self isQuadLEDs];
-    if ([shortcutType isEqualToString:kTLShortcutAmberOn]) {
+    if ([shortcutType isEqualToString:kTLShortcutAmberOn] && !segmented) {
         if (legacy) {
             LEDLevel = 100;
             WarmLEDPercentile = 100;
-        } else if (segmented) {
-            CenterLEDLevel = 0;
-            CornerLEDLevel = kTLQuadLEDMaxLevel;
-            SideLEDLevel = kTLQuadLEDMaxLevel;
         } else {
             CoolLED0Level = 0;
             CoolLED1Level = 0;
             WarmLED0Level = kTLQuadLEDMaxLevel;
             WarmLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
         }
-    } else if ([shortcutType isEqualToString:kTLShortcutWhiteOn]) {
+    } else if ([shortcutType isEqualToString:kTLShortcutWhiteOn] && !segmented) {
         if (legacy) {
             LEDLevel = 100;
             WarmLEDPercentile = 0;
-        } else if (segmented) {
-            CenterLEDLevel = kTLQuadLEDMaxLevel;
-            CornerLEDLevel = 0;
-            SideLEDLevel = 0;
         } else {
             CoolLED0Level = kTLQuadLEDMaxLevel;
             CoolLED1Level = quad ? kTLQuadLEDMaxLevel : 0;
             WarmLED0Level = 0;
             WarmLED1Level = 0;
         }
+    } else if ([shortcutType isEqualToString:kTLShortcutRingOn] && segmented) {
+        CenterLEDLevel = 0;
+        CornerLEDLevel = kTLQuadLEDMaxLevel;
+        SideLEDLevel = kTLQuadLEDMaxLevel;
+    } else if ([shortcutType isEqualToString:kTLShortcutCenterOn] && segmented) {
+        CenterLEDLevel = kTLQuadLEDMaxLevel;
+        CornerLEDLevel = 0;
+        SideLEDLevel = 0;
     } else if ([shortcutType isEqualToString:kTLShortcutAllOn]) {
         if (legacy) {
             LEDLevel = 100;

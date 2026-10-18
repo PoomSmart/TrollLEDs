@@ -79,33 +79,6 @@
 			</array>
 		</dict>
 	</dict>
-	<key>UIApplicationShortcutItems</key>
-	<array>
-		<dict>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>AmberOn</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Amber On</string>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.ps.TrollLEDs.AmberOn</string>
-		</dict>
-		<dict>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>WhiteOn</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>White On</string>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.ps.TrollLEDs.WhiteOn</string>
-		</dict>
-		<dict>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>AllOn</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>All On</string>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.ps.TrollLEDs.AllOn</string>
-		</dict>
-	</array>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>

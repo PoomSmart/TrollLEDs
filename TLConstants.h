@@ -53,6 +53,12 @@ static NSString * const kTLShortcutAmberOn = @"com.ps.TrollLEDs.AmberOn";
 /// Shortcut action identifier for turning on white LEDs
 static NSString * const kTLShortcutWhiteOn = @"com.ps.TrollLEDs.WhiteOn";
 
+/// Shortcut action identifier for the adaptive flash center group
+static NSString * const kTLShortcutCenterOn = @"com.ps.TrollLEDs.CenterOn";
+
+/// Shortcut action identifier for the adaptive flash ring (corners + sides)
+static NSString * const kTLShortcutRingOn = @"com.ps.TrollLEDs.RingOn";
+
 /// Shortcut action identifier for turning on all LEDs
 static NSString * const kTLShortcutAllOn = @"com.ps.TrollLEDs.AllOn";
 

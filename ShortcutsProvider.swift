@@ -20,6 +20,22 @@ struct TrollLEDsAppShortcutsProvider: AppShortcutsProvider {
             systemImageName: "flashlight.on.circle.fill"
         )
         AppShortcut(
+            intent: CenterOnIntent(),
+            phrases: [
+                "Turn on the center flash with \(.applicationName)"
+            ],
+            shortTitle: "Center On",
+            systemImageName: "flashlight.on.circle.fill"
+        )
+        AppShortcut(
+            intent: RingOnIntent(),
+            phrases: [
+                "Turn on the flash ring with \(.applicationName)"
+            ],
+            shortTitle: "Ring On",
+            systemImageName: "flashlight.on.circle.fill"
+        )
+        AppShortcut(
             intent: AllOnIntent(),
             phrases: [
                 "Turn on all LEDs with \(.applicationName)"
