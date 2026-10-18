@@ -131,7 +131,7 @@
 }
 
 - (BOOL)showsPhysicalLEDCount {
-    return [_deviceManager flashAPI] == TLFlashAPIQuadManual;
+    return ![_deviceManager isLegacyLEDs] && ![_deviceManager isSegmentedLEDs];
 }
 
 #pragma mark - State Persistence
@@ -650,14 +650,13 @@
         return;
     }
 
-    TLFlashAPI api = [_deviceManager flashAPI];
-    BOOL isLegacyLEDs = (api == TLFlashAPILegacyDual);
+    BOOL isLegacyLEDs = [_deviceManager isLegacyLEDs];
     int sliderCount = kTLQuadSliderCount;
     int maxValue = kTLQuadLEDMaxLevel;
     if (isLegacyLEDs) {
         sliderCount = kTLLegacySliderCount;
         maxValue = kTLLegacyLEDMaxLevel;
-    } else if (api == TLFlashAPISegmentedAdaptive) {
+    } else if ([_deviceManager isSegmentedLEDs]) {
         sliderCount = kTLSegmentedSliderCount;
     }
 
@@ -995,15 +994,14 @@
 }
 
 - (void)updateParameters {
-    TLFlashAPI api = [_deviceManager flashAPI];
-    if (api == TLFlashAPILegacyDual) {
+    if ([_deviceManager isLegacyLEDs]) {
         NSNumber *torchLevelValue = @(LEDLevel);
         NSDictionary *torchColorValue = @{@"WarmLEDPercentile" : @(WarmLEDPercentile)};
         [_deviceManager setProperty:kTLPropertyTorchLevel value:torchLevelValue];
         [_deviceManager setProperty:kTLPropertyTorchColor value:torchColorValue];
-    } else if (api == TLFlashAPISegmentedAdaptive) {
+    } else if ([_deviceManager isSegmentedLEDs]) {
         [_deviceManager setSegmentedLEDCenter:CenterLEDLevel corners:CornerLEDLevel sides:SideLEDLevel];
-    } else if (api == TLFlashAPIQuadManual) {
+    } else {
         NSDictionary *params = @{
             @"CoolLED0Level" : @(CoolLED0Level),
             @"CoolLED1Level" : @(CoolLED1Level),
